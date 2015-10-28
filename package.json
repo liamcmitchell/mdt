@@ -1,0 +1,25 @@
+{
+  "name": "mdt",
+  "version": "1.0.0",
+  "description": "MDT",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liamcmitchell/mdt.git"
+  },
+  "author": "Liam Mitchell",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/liamcmitchell/mdt/issues"
+  },
+  "homepage": "https://github.com/liamcmitchell/mdt#readme",
+  "dependencies": {
+    "chokidar": "^1.1.0",
+    "colors": "^1.1.2",
+    "open": "0.0.5",
+    "stream-line-wrapper": "^0.1.1"
+  }
+}
