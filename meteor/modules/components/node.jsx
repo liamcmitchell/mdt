@@ -1,194 +1,128 @@
-import React, { Component } from "react"
-import Cursor from "lib/cursor"
-import childrenToArray from "lib/childrenToArray"
+import { Component, PropTypes } from "react"
 
-// Used to avoid overriding handlers with null. 
-function omitFalsyProps(obj) {
-  const newObj = {}
-  Object.keys(obj).forEach(key => {
-    if (obj[key]) {
-      newObj[key] = obj[key]
-    }
-  })
-  return newObj
-}
-
-function elementIsNode(el) {
-  return el && el.type && el.type.isNode
-}
-
-function elementIsItem(el) {
-  return el && el.type && el.type.isNodeItem
-}
-
-function elementIsContent(el) {
-  return el && el.type && el.type.isNodeContent
-}
-
-// A node is a high level abstraction of a recursively nestable UI component.
-// A node must contain 
 class Node extends Component {
-  static isNode = true
-
   static propTypes = {
-    // Flag to prevent passing cursor back to root.
-    root: React.PropTypes.bool,
-    // Triggers render modes.
-    render: React.PropTypes.oneOf(["item", "content"]),
-    // Passed as-is to item, child cursors are created for child nodes.
-    cursor: React.PropTypes.instanceOf(Cursor),
-    // Merged and passed on to both item and child nodes.
-    handlers: React.PropTypes.object,
-    // Passed on to item, content & child nodes unless overridden.
-    styles: React.PropTypes.object
+    path: PropTypes.object.isRequired,
+    isFocused: PropTypes.bool.isRequired,
+    isOnPath: PropTypes.bool.isRequired,
+    styles: PropTypes.object,
+    onMouseDown: PropTypes.func.isRequired,
+    onDoubleClick: PropTypes.func.isRequired,
+    onKeyDown: PropTypes.func.isRequired,
+    item: PropTypes.node.isRequired
+  }
+
+  constructor(props, context) {
+    super(props, context)
+
+    this.state = {
+      // isFocused being true doesn't guarantee that the element is focused.
+      focused: false
+    }
   }
 
   render() {
-    switch (this.props.render) {
-      case "item":
-        return this._renderItem()
-      case "content":
-        return this._renderContent()
-      default:
-        throw new Error("Node render mode not set.")
-    }
+    const style = Object.assign({
+      // It is possible that we have the cursor but don't have focus
+      // and therefore can't catch keyboard events. This is possible if
+      // another element is focused without updating our cursor or if the
+      // browser focus is lost.
+      // To show that we don't have control we fade the entire node.
+      opacity: this.props.isFocused && !this.state.focused ? 0.7 : 1,
+      // All node items respond to clicks.
+      cursor: "pointer",
+      // Give default styling
+      backgroundColor: this.props.isOnPath ?
+        this.props.styles.backgroundHighlightColor :
+        null
+    }, this.props.style)
+
+    // Provide basic styling if item is text.
+    const item = typeof this.props.item === "string" ?
+      <div
+        style={{
+          color: this.props.styles.primaryColor,
+          padding: this.props.styles.padding
+        }}
+      >
+        {this.props.item}
+      </div> :
+      this.props.item
+
+    return <div
+      ref="wrapper"
+      style={style}
+      tabIndex="-1"
+      onFocus={this._handleFocus.bind(this)}
+      onBlur={this._handleBlur.bind(this)}
+      onMouseDown={this.props.onMouseDown.bind(null, this.props.path)}
+      onDoubleClick={this.props.onDoubleClick.bind(null, this.props.path)}
+      onKeyDown={this.props.onKeyDown.bind(null, this.props.path)}
+    >
+      {item}
+    </div>
   }
 
   componentDidMount() {
-    this._updateLastChild()
+    // Focus the node if we have the cursor on mount.
+    if (this.props.isFocused) {
+      this.refs.wrapper.getDOMNode().focus()
+    }
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (this.props.isFocused && !nextProps.isFocused) {
+      // We are losing focus.
+      this.setState({focused: false})
+    }
+
+    if (!this.props.isFocused && nextProps.isFocused) {
+      // We are receiving focus. We will set focus on the node so we should be
+      // OK to set the state before it happens.
+      this.setState({focused: true})
+    }
   }
 
   componentDidUpdate(prevProps, prevState) {
-    this._updateLastChild()
-  }
-
-  _renderItem() {
-    const item = this._getItem()
-    // Extend item merging given props (item.props) with inherited (this.props).
-    return React.cloneElement(item, {
-      cursor: this.props.cursor,
-      handlers: Object.assign({}, this.props.handlers, omitFalsyProps({
-        right: this._hasChildNode() ? this._moveCursorToChild.bind(this) : null
-      }), item.props.handlers),
-      styles: item.props.styles || this.props.styles
-    })
-  }
-
-  _renderContent() {
-    const content = this._getContent()
-
-    if (!content) {
-      return null
+    // Focus the actual DOM node.
+    if (this.props.isFocused && !prevProps.isFocused) {
+      this.refs.wrapper.getDOMNode().focus()
     }
+  }
 
-    const children = childrenToArray(content.props.children)
-      .map(this._extendChildNode.bind(this))
-
-    const childOnPath = children.find(child =>
-      elementIsNode(child) && child.props.cursor.isOnPath
+  shouldComponentUpdate(prevProps, prevState) {
+    return (
+      prevProps.isFocused !== this.props.isFocused ||
+      prevProps.isOnPath !== this.props.isOnPath ||
+      prevState.focused !== this.state.focused
     )
-    const childContent = childOnPath ?
-      React.cloneElement(childOnPath, {
-        render: "content"
-      }) :
-      null
-
-    // Extend content merging given props (content.props) with inherited.
-    return React.cloneElement(content, {
-      childContent,
-      styles: content.props.styles || this.props.styles
-    }, children)
   }
 
-  _getItem() {
-    const item = childrenToArray(this.props.children).find(elementIsItem)
-
-    if (!item) {
-      throw new Error("Node must have an item.")
+  _handleFocus(event) {
+    if (!this.state.focused) {
+      // Should only happen when focus is returned to the browser.
+      this.setState({focused: true})
     }
-
-    return item
   }
 
-  _getContent() {
-    return childrenToArray(this.props.children).find(elementIsContent)
-  }
-
-  _getChildNodes() {
-    const content = this._getContent()
-    return content ?
-      childrenToArray(content.props.children).filter(elementIsNode) :
-      []
-  }
-
-  _hasChildNode() {
-    const content = this._getContent()
-    return content &&
-      childrenToArray(content.props.children).some(elementIsNode)
-  }
-
-  _extendChildNode(element) {
-    return elementIsNode(element) ?
-      React.cloneElement(element, {
-        // Render as item by default.
-        render: "item",
-        // Flag to prevent left handler moving cursor to root.
-        root: false,
-        cursor: this.props.cursor.createChild(element.key),
-        styles: element.props.styles || this.props.styles,
-        handlers: Object.assign({},
-          this.props.handlers,
-          omitFalsyProps({
-            left: this.props.root === false ?
-              this._moveCursorHere.bind(this) :
-              null,
-            up: this._moveCursorToChildSibling.bind(this, element.key, -1),
-            down: this._moveCursorToChildSibling.bind(this, element.key, +1)
-          }),
-          element.props.handlers
-        )
-      }) :
-      element
-  }
-
-  _moveCursorHere() {
-    this.props.cursor.setPath([])
-  }
-
-  _moveCursorToChild() {
-    const childNodes = this._getChildNodes()
-    const lastChild = childNodes.find(child => child.key === this.lastChild)
-    // Prefer last child if it still exists.
-    const child = lastChild || childNodes[0]
-    this.props.cursor.setPath([child.key])
-  }
-
-  _moveCursorToChildSibling(childKey, indexIncrement) {
-    const childNodes = this._getChildNodes()
-
-    if (childNodes.length === 0) {
-      throw new Error("No child nodes.")
-    }
-
-    const index = childNodes.findIndex(child => child.key === childKey)
-    var newIndex = index + indexIncrement
-    // Loop to start.
-    while (newIndex >= childNodes.length) {
-      newIndex -= childNodes.length
-    }
-    // Loop to end.
-    while (newIndex < 0) {
-      newIndex += childNodes.length
-    }
-
-    this.props.cursor.setPath([childNodes[newIndex].key])
-  }
-
-  _updateLastChild() {
-    const cursor = this.props.cursor
-    // Only needed for event handler so don't save in this.state.
-    if (cursor && cursor.path && cursor.path[0]) {
-      this.lastChild = cursor.path[0]
+  _handleBlur(event) {
+    // If we should be focused, try to recover before updating state.
+    if (this.props.isFocused && this.state.focused) {
+      // Defer blur handling so we can see what has been focused.
+      setTimeout(() => {
+        // Try to recover focus if we lost it to body.
+        if (document.activeElement === document.body) {
+          this.refs.wrapper.getDOMNode().focus()
+          // And if we still don't have it, update state.
+          if (document.activeElement !== this.refs.wrapper.getDOMNode()) {
+            this.setState({focused: false})
+          }
+        }
+        // Another element has focus, so update state.
+        else {
+          this.setState({focused: false})
+        }
+      })
     }
   }
 }

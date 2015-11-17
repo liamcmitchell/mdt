@@ -17,9 +17,24 @@
   },
   "homepage": "https://github.com/liamcmitchell/mdt#readme",
   "dependencies": {
+    "baobab": "^2.1.0",
     "chokidar": "^1.1.0",
     "colors": "^1.1.2",
-    "open": "0.0.5",
+    "history": "^1.13.0",
+    "immutable": "^3.7.5",
+    "shallow-equals": "0.0.0",
+    "source-map-support": "^0.3.3",
     "stream-line-wrapper": "^0.1.1"
+  },
+  "devDependencies": {
+    "babel-core": "^6.1.21",
+    "babel-loader": "^6.2.0",
+    "babel-preset-es2015": "^6.1.18",
+    "babel-preset-react": "^6.1.18",
+    "monkey-hot-loader": "0.0.3",
+    "nodemon": "^1.8.1",
+    "open": "0.0.5",
+    "webpack": "^1.12.6",
+    "webpack-dev-server": "^1.12.1"
   }
 }
