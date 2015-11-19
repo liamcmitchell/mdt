@@ -3,10 +3,13 @@ var path = require('path')
 var fs = require('fs')
 var nodemon = require('nodemon')
 
+var buildDir = path.join(__dirname, "build")
+
 var started = false
 
 // Clear the build dir.
-fs.readdirSync(path.join(__dirname, "build"))
+fs.readdirSync(buildDir)
+  .map(function(file) { return path.join(buildDir, file) })
   .forEach(fs.unlinkSync)
 
 // Build list of node modules that webpack should avoid compiling.
@@ -20,15 +23,20 @@ var nodeModules = fs
 
 var backendConfig = {
   entry: [
-    // Not sure what this is for...
+    // This adds code to trigger HMR on receiving SIGUSR2 signal
+    // (used by nodemon.restart).
     'webpack/hot/signal.js',
     './server.js'
   ],
+  resolve: {
+    root: path.join(__dirname, 'modules'),
+    extensions: ['', '.js', '.jsx', '.json']
+  },
   module: {
     loaders: [{
       test: /\.jsx?$/,
       exclude: /node_modules/,
-      loaders: ['monkey-hot', 'babel?presets[]=es2015,presets[]=react']
+      loaders: ['babel?presets[]=es2015,presets[]=react']
     }]
   },
   target: 'node',
@@ -87,8 +95,6 @@ webpack(backendConfig).watch({}, function(err, stats) {
       ignore: ['*'],
       watch: ['foo/'],
       ext: 'noop'
-    }).on('restart', function() {
-      console.log('Patched server.')
     })
     started = true
   }

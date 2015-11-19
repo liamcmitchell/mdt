@@ -20,6 +20,7 @@
     "baobab": "^2.1.0",
     "chokidar": "^1.1.0",
     "colors": "^1.1.2",
+    "express": "^4.13.3",
     "history": "^1.13.0",
     "immutable": "^3.7.5",
     "shallow-equals": "0.0.0",
