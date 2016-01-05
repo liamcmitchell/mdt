@@ -2,15 +2,37 @@ var webpack = require('webpack')
 var path = require('path')
 var fs = require('fs')
 var nodemon = require('nodemon')
+var rm = require('rimraf')
 
-var buildDir = path.join(__dirname, "build")
+var buildDir = path.join(__dirname, 'build')
+var buildDirServer = path.join(buildDir, 'server')
+var buildDirClient = path.join(buildDir, 'client')
+var modulesDir = path.join(__dirname, 'modules')
 
-var started = false
+var jsLoader = {
+  test: /\.jsx?$/,
+  exclude: /node_modules/,
+  loader: 'babel',
+  query: {
+    presets: ['es2015', 'stage-0', 'react']
+  }
+}
 
-// Clear the build dir.
-fs.readdirSync(buildDir)
-  .map(function(file) { return path.join(buildDir, file) })
-  .forEach(fs.unlinkSync)
+var webpackStatsConfig = {
+  colors: true,
+  hash: false,
+  version: false,
+  timings: true,
+  assets: false,
+  chunks: false,
+  chunkModules: false,
+  modules: false,
+  cached: false,
+  reasons: false,
+  source: true,
+  errorDetails: true,
+  chunkOrigins: false
+}
 
 // Build list of node modules that webpack should avoid compiling.
 var nodeModules = fs
@@ -21,37 +43,30 @@ var nodeModules = fs
     return memo
   }, {})
 
-var backendConfig = {
+var serverConfig = {
   entry: [
-    // This adds code to trigger HMR on receiving SIGUSR2 signal
-    // (used by nodemon.restart).
-    'webpack/hot/signal.js',
     './server.js'
   ],
   resolve: {
-    root: path.join(__dirname, 'modules'),
+    root: modulesDir,
     extensions: ['', '.js', '.jsx', '.json']
   },
   module: {
-    loaders: [{
-      test: /\.jsx?$/,
-      exclude: /node_modules/,
-      loaders: ['babel?presets[]=es2015,presets[]=react']
-    }]
+    loaders: [jsLoader]
   },
   target: 'node',
   output: {
-    path: path.join(__dirname, 'build'),
+    path: buildDirServer,
     filename: 'server.js'
   },
-  devtool: "source-map",
+  devtool: 'eval',
   node: {
     __dirname: true,
     __filename: true
   },
   externals: nodeModules,
   // Needed to keep persistent ids of modules and chunks for HMR.
-  recordsPath: path.join(__dirname, 'build/_records'),
+  recordsPath: path.join(buildDirServer, '_records'),
   plugins: [
     // Adds source map support to node.
     new webpack.BannerPlugin(
@@ -62,43 +77,126 @@ var backendConfig = {
   ]
 }
 
-webpack(backendConfig).watch({}, function(err, stats) {
+var serverStarted = false
+function startServer() {
+  if (!serverStarted) {
+    // Start server process using nodemon.
+    nodemon({
+      execMap: {
+        js: 'node'
+      },
+      script: path.join(buildDirServer, 'server'),
+      // The following config stops nodemon from actually monitoring files.
+      ignore: ['*'],
+      watch: ['foo/'],
+      ext: 'noop'
+    })
+    serverStarted = true
+  }
+}
+
+var clientConfig = {
+  entry: [
+    './client.js'
+  ],
+  resolve: {
+    root: modulesDir,
+    extensions: ['', '.js', '.jsx', '.json']
+  },
+  module: {
+    loaders: [jsLoader]
+  },
+  target: 'web',
+  output: {
+    path: buildDirClient,
+    publicPath: '/_client/',
+    filename: 'client.js'
+  },
+  devtool: 'eval',
+  // Needed to keep persistent ids of modules and chunks for HMR.
+  // Do we need this for the client?
+  recordsPath: path.join(buildDirClient, '_records'),
+  plugins: [
+    new webpack.HotModuleReplacementPlugin({ quiet: true })
+  ]
+}
+
+// Start build.
+
+// Clear the build dir.
+rm.sync(path.join(buildDir, '*'))
+
+// Build & watch server
+var serverCompiler = webpack(serverConfig)
+
+// Looking into webpack internals...
+var log = function(key) {
+  return function() {
+    console.log(key, arguments.length)
+    var cb = arguments[arguments.length - 1]
+    if (typeof cb === 'function') {
+      cb()
+    }
+  }
+}
+
+function moduleURL(module) {
+  // NPM
+  if (!module.resource && module.request) {
+    return '/npm/' + module.request
+  }
+  else if (module.resource) {
+    return '/local' + module.resource.replace(__dirname, '')
+  }
+}
+
+var compilerInterfaces = {
+  'run': null,
+  'watch-run': null,
+  'compilation': null,
+  // 'normal-module-factory': null,
+  // 'context-module-factory': null,
+  'compile': null,
+  'make': null,
+  'after-compile': null,
+  'emit': null,
+  'after-emit': function(compilation, cb) {
+    console.log(compilation.assets)
+    compilation.modules.forEach(module => {
+      // console.log(moduleURL(module))
+      if (moduleURL(module) === '/local/modules/api.js') {
+        console.log(module)
+      }
+    })
+    cb()
+  },
+  'done': null,
+  'failed': null,
+  'invalid': null
+}
+// Object.keys(compilerInterfaces).forEach((key) => {
+//   if (compilerInterfaces[key])
+//     serverCompiler.plugin(key, compilerInterfaces[key])
+// })
+
+serverCompiler.watch({}, function(err, stats) {
   if (err) {
     console.log('Error', err)
     return
   }
 
-  console.log(stats.toString({
-    colors: true,
-    hash: false,
-    version: false,
-    timings: true,
-    assets: false,
-    chunks: false,
-    chunkModules: false,
-    modules: false,
-    cached: false,
-    reasons: false,
-    source: true,
-    errorDetails: true,
-    chunkOrigins: false
-  }))
+  console.log('[Server] ' + stats.toString(webpackStatsConfig))
 
-  if (!started) {
-    // Start server process using nodemon.
-    // This allows 
-    nodemon({
-      execMap: {
-        js: 'node'
-      },
-      script: path.join(__dirname, 'build/server'),
-      ignore: ['*'],
-      watch: ['foo/'],
-      ext: 'noop'
-    })
-    started = true
+  startServer()
+})
+
+// Build & watch client
+var clientCompiler = webpack(clientConfig)
+clientCompiler.watch({}, function(err, stats) {
+  if (err) {
+    console.log('Error', err)
+    return
   }
-  else {
-    nodemon.restart()
-  }
+
+  console.log('[Client] ' + stats.toString(webpackStatsConfig))
 })
