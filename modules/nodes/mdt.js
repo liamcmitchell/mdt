@@ -1,51 +1,39 @@
 import React, { Component } from 'react'
-import serverSource from 'sources/server'
+import data from 'client-data'
+import Observe from 'components/observe'
 
-class Live extends Component {
-  constructor(props, context) {
-    super(props, context)
-
-    this.state = {
-      val: ''
-    }
-  }
-
-  render() {
-    return <span>{this.state.val}</span>
-  }
-
-  componentWillMount() {
-    this._setSubscription()
-  }
-
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.url !== this.props.url) {
-      this.subscription.dispose()
-      this._setSubscription()
-    }
-  }
-
-  _setSubscription() {
-    this.subscription = serverSource(this.props.url).subscribe(data => {
-      this.setState({val: data})
-    })
-  }
-
-  componentWillUnmount() {
-    this.subscription.dispose()
-  }
+function renderObservable(observable) {
+  return <Observe observable={observable} />
 }
 
 export default {
   key: "mdt",
   item: () => "mdt",
   children: () => [
-    // mdt.require("/config").mdtVersion
     "1.0.0",
-    "/local/mdt.json",
+    "/file/mdt.json",
     {
-      key: 'yo',
-      item: <Live url='/local/mdt.json' />
+      key: 'file',
+      item: renderObservable(data.observable('/file/date').map(date =>
+        <span>{date}</span>
+      ))
+    },
+    {
+      key: 'dir',
+      item: renderObservable(data.observable('/dir').map(dirs =>
+        <ul>
+          {dirs.map(dir =>
+            <li
+              key={dir}
+            >
+              {dir}
+            </li>
+          )}
+        </ul>
+      ))
+      // children: data.observable('/dir').map(dir =>
+      //   ['test']
+      // )
     }
   ]
 }

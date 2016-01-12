@@ -44,6 +44,10 @@ websocketServer.on('connection', function (socket) {
   // Store all subscriptions on the socket.
   socket.subscriptions = {}
 
+  socket.on('error', error => {
+    console.error(error.message, '\n', error.stack)
+  })
+
   // Update subscriptions.
   socket.on('subscriptions', subscriptions => {
     // Add.

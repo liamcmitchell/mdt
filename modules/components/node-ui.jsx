@@ -1,11 +1,12 @@
-import React, { Component } from "react"
-import Immutable from "immutable"
-import keycode from "keycode"
-import Node from "components/node"
+import React, { Component } from 'react'
+import Immutable from 'immutable'
+import keycode from 'keycode'
+import Node from 'components/node'
 import createHistory from 'history/lib/createBrowserHistory'
+import Rx from 'rx'
 
 function getProp(object, prop) {
-  return typeof object[prop] === "function" ?
+  return typeof object[prop] === 'function' ?
     object[prop]() :
     object[prop]
 }
@@ -15,15 +16,15 @@ function isNode(el) {
 }
 
 function nodeItem(node) {
-  return getProp(node, "item")
+  return getProp(node, 'item')
 }
 
 function nodeChildren(node) {
-  return getProp(node, "children")
+  return getProp(node, 'children')
 }
 
 function nodeHandlers(node) {
-  return getProp(node, "handlers")
+  return getProp(node, 'handlers')
 }
 
 function findNode(items, key) {
@@ -84,8 +85,8 @@ class NodeUI extends Component {
 
     return <div
       style={{
-        display: "flex",
-        flexDirection: "row",
+        display: 'flex',
+        flexDirection: 'row',
         flex: 1,
         backgroundColor: this.props.styles.backgroundColor
       }}
@@ -94,10 +95,10 @@ class NodeUI extends Component {
         return <div
           key={depth}
           style={{
-            display: "flex",
-            flexDirection: "column",
-            maxHeight: "100%",
-            overflow: "auto"
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: '100%',
+            overflow: 'auto'
           }}
         >
           {items.map(item => this._renderItem(item, path.take(depth)))}
@@ -122,7 +123,7 @@ class NodeUI extends Component {
         item={nodeItem(item)}
       />
     }
-    else if (typeof item === "string") {
+    else if (typeof item === 'string') {
       // Give plain strings standard padding.
       return <div
         key={item}
@@ -152,14 +153,14 @@ class NodeUI extends Component {
     const key = keycode(event)
 
     switch (key) {
-      case "left":
+      case 'left':
         // Move to parent (if there is a parent).
         if (path.size > 1) {
           this._setPath(path.butLast())
           event.preventDefault()
         }
         break
-      case "right":
+      case 'right':
         // Move to child.
         const childNodes = this._getChildNodes(path)
         // Check there is a child to go to.
@@ -176,12 +177,12 @@ class NodeUI extends Component {
           event.preventDefault()
         }
         break
-      case "up":
+      case 'up':
         // Move to prev sibling.
         this._setPath(path.splice(-1, 1, this._getSiblingNode(path, -1).key))
         event.preventDefault()
         break
-      case "down":
+      case 'down':
         // Move to next sibling.
         this._setPath(path.splice(-1, 1, this._getSiblingNode(path, +1).key))
         event.preventDefault()
@@ -205,7 +206,7 @@ class NodeUI extends Component {
   _getNode(path) {
     const node = findNodeFromPath(this.props.root, path.toJS())
     if (!node) {
-      throw new Error("Node not found for path " + path.toJS().join("/"))
+      throw new Error('Node not found for path ' + path.toJS().join('/'))
     }
     return node
   }
@@ -230,7 +231,7 @@ class NodeUI extends Component {
   }
 
   _handleHistoryChange({ pathname }) {
-    const path = Immutable.List(pathname.slice(1).split("/"))
+    const path = Immutable.List(pathname.slice(1).split('/'))
     // TODO: Check path is valid before setting it.
     // It may come from user.
     this._updateLastChild(path)
@@ -239,9 +240,9 @@ class NodeUI extends Component {
 
   _setPath(path) {
     if (!Immutable.List.isList(path)) {
-      throw new Error("Path must be immutable list.")
+      throw new Error('Path must be immutable list.')
     }
-    this._history.replaceState(null, "/" + path.toJS().join("/"))
+    this._history.replaceState(null, '/' + path.toJS().join('/'))
   }
 
   _updateLastChild(path) {

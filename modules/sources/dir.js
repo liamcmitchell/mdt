@@ -5,12 +5,12 @@ const chokidar = require('chokidar')
 // Returns observable for file contents.
 // Errors if file doesn't exist or is deleted.
 function observable(url) {
-  // Url is relative to project root so strip first slash.
+  // Url is relative to project root.
   url = '.' + url
   return Rx.Observable.create(observer => {
     // TODO: Read could be shared with connected observable.
     var read = () => {
-      fs.readFile(url, 'utf-8', (error, data) => {
+      fs.readdir(url, (error, data) => {
         if (error) {
           observer.onError(error)
         }
@@ -20,8 +20,10 @@ function observable(url) {
       })
     }
     var watcher = chokidar.watch(url, {ignoreInitial: true})
-    watcher.on('change', read)
+    watcher.on('add', read)
     watcher.on('unlink', read)
+    watcher.on('addDir', read)
+    watcher.on('unlinkDir', read)
     watcher.on('error', observer.onError.bind(observer))
     read()
     // Return dispose function.

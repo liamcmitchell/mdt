@@ -129,56 +129,6 @@ rm.sync(path.join(buildDir, '*'))
 // Build & watch server
 var serverCompiler = webpack(serverConfig)
 
-// Looking into webpack internals...
-var log = function(key) {
-  return function() {
-    console.log(key, arguments.length)
-    var cb = arguments[arguments.length - 1]
-    if (typeof cb === 'function') {
-      cb()
-    }
-  }
-}
-
-function moduleURL(module) {
-  // NPM
-  if (!module.resource && module.request) {
-    return '/npm/' + module.request
-  }
-  else if (module.resource) {
-    return '/local' + module.resource.replace(__dirname, '')
-  }
-}
-
-var compilerInterfaces = {
-  'run': null,
-  'watch-run': null,
-  'compilation': null,
-  // 'normal-module-factory': null,
-  // 'context-module-factory': null,
-  'compile': null,
-  'make': null,
-  'after-compile': null,
-  'emit': null,
-  'after-emit': function(compilation, cb) {
-    console.log(compilation.assets)
-    compilation.modules.forEach(module => {
-      // console.log(moduleURL(module))
-      if (moduleURL(module) === '/local/modules/api.js') {
-        console.log(module)
-      }
-    })
-    cb()
-  },
-  'done': null,
-  'failed': null,
-  'invalid': null
-}
-// Object.keys(compilerInterfaces).forEach((key) => {
-//   if (compilerInterfaces[key])
-//     serverCompiler.plugin(key, compilerInterfaces[key])
-// })
-
 serverCompiler.watch({}, function(err, stats) {
   if (err) {
     console.log('Error', err)

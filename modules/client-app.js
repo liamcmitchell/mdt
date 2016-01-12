@@ -4,6 +4,8 @@ import colors from "lib/colors"
 import mdtNode from "nodes/mdt"
 import dummyNode from "nodes/dummy"
 
+import Test from 'components/test'
+
 class App extends Component {
   componentWillMount() {
     // Disable history.back on backspace, noone needs that.
@@ -28,6 +30,10 @@ class App extends Component {
       }}
     />
   }
+
+  // render() {
+  //   return <Test text="yo dawg" />
+  // }
 }
 
 export default App

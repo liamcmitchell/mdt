@@ -19,13 +19,13 @@ Router.prototype.registerHandler = function(route, handler) {
   this[route] = handler
 }
 
-Router.prototype.handle = function(url, data) {
+Router.prototype.handle = function(request) {
   // Get first route
-  var nextIndex = url.indexOf('/', 1)
-  var currentRoute = url.substring(0, (nextIndex > 1 ? nextIndex : url.length))
-  var nextRoute = url.substring(currentRoute.length)
+  var nextIndex = request.url.indexOf('/', 1)
+  var currentRoute = request.url.substring(0, (nextIndex > 1 ? nextIndex : request.url.length))
+  var nextRoute = request.url.substring(currentRoute.length)
   if (this.hasOwnProperty(currentRoute)) {
-    return this[currentRoute].handle(nextRoute, data)
+    return this[currentRoute].handle(Object.assign({}, request, {url: nextRoute}))
   }
   else {
     throw new NoHandlerError('No handler found for route ' + currentRoute)

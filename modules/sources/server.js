@@ -17,7 +17,7 @@ websocketClient.on('connect', () => {
 var serverData = Rx.Observable.fromEvent(websocketClient, 'data')
 
 // Returns observable of server data.
-export default function serverSource(url) {
+function observable(url) {
   return Rx.Observable.create(observer => {
     // Create subscription for this url if it doesn't exist.
     if (!subscriptions[url]) {
@@ -65,3 +65,15 @@ export default function serverSource(url) {
     }
   })
 }
+
+export default {
+  handle: function(request) {
+    if (request.method === 'OBSERVABLE') {
+      return observable(request.url)
+    }
+    else {
+      throw new Error('Method not supported.', request)
+    }
+  }
+}
+
