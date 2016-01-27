@@ -1,6 +1,5 @@
 import fs from 'fs'
 import chokidar from 'chokidar'
-import open from 'open'
 import createSource from 'data/createSource'
 
 export default createSource({
@@ -9,7 +8,7 @@ export default createSource({
     const url = '.' + request.url
     // TODO: Read could be shared with connected observable.
     const read = () => {
-      fs.readFile(url, 'utf-8', (error, data) => {
+      fs.readdir(url, (error, data) => {
         if (error) {
           observer.onError(error)
         }
@@ -19,17 +18,13 @@ export default createSource({
       })
     }
     const watcher = chokidar.watch(url, {ignoreInitial: true})
-    watcher.on('change', read)
+    watcher.on('add', read)
     watcher.on('unlink', read)
+    watcher.on('addDir', read)
+    watcher.on('unlinkDir', read)
     watcher.on('error', observer.onError.bind(observer))
     read()
     // Return dispose function.
     return watcher.close.bind(watcher)
-  },
-  OPEN: function(request, promise) {
-    // Url is relative to project root.
-    const url = '.' + request.url
-    open(url)
-    promise.resolve()
   }
 })

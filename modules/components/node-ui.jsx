@@ -1,9 +1,15 @@
 import React, { Component } from 'react'
-import Immutable from 'immutable'
 import keycode from 'keycode'
-import Node from 'components/node'
+import ObservableComponent from 'components/observable'
+import NodeItem from 'components/node-item'
 import createHistory from 'history/lib/createBrowserHistory'
 import Rx from 'rx'
+import _ from 'underscore'
+import data from 'client-data'
+
+function asObservable(v) {
+  return Rx.Observable.isObservable(v) ? v : Rx.Observable.just(v)
+}
 
 function getProp(object, prop) {
   return typeof object[prop] === 'function' ?
@@ -20,26 +26,51 @@ function nodeItem(node) {
 }
 
 function nodeChildren(node) {
-  return getProp(node, 'children')
+  return getProp(node, 'nodes')
+}
+
+function nodeChildren$(node$) {
+  return node$.flatMapLatest(node => asObservable(nodeChildren(node)))
 }
 
 function nodeHandlers(node) {
   return getProp(node, 'handlers')
 }
 
-function findNode(items, key) {
-  return items.find(item =>
-    isNode(item) && item.key === key
-  )
+function nodeHandlers$(node$) {
+  return node$.flatMapLatest(node => asObservable(nodeHandlers(node)))
 }
 
-function findNodeFromPath(node, path) {
-  return path[0] ?
-    findNodeFromPath(findNode(nodeChildren(node), path[0]), path.slice(1)) :
-    node
+// Helper for common find arg.
+function nodeWithKey(key) {
+  return function(node) {
+    return isNode(node) && node.key === key
+  }
 }
 
-class NodeUI extends Component {
+function nodeAtPath(node, path) {
+  return path.length === 0 ?
+    node :
+    nodeAtPath(nodeChildWithKey(node, path[0]), path.slice(1))
+}
+
+function nodeAtPath$(node$, path) {
+  return path.length === 0 ?
+    node$ :
+    nodeAtPath$(nodeChildWithKey$(node$, path[0]), path.slice(1))
+}
+
+function nodeChildWithKey(node, key) {
+  return nodeChildren(node).find(nodeWithKey(key))
+}
+
+function nodeChildWithKey$(node$, key) {
+  return nodeChildren$(node$).map(nodes => nodes.find(nodeWithKey(key)))
+}
+
+const log = console.log.bind(console)
+
+class NodeUI extends ObservableComponent {
   static propTypes = {
     // Passed on to item, content & child nodes unless overridden.
     styles: React.PropTypes.object,
@@ -50,38 +81,48 @@ class NodeUI extends Component {
   constructor(props, context) {
     super(props, context)
 
-    this.state = {
-      path: Immutable.List()
-    }
-
     // Bind handlers.
     this._handleMouseDown = this._handleMouseDown.bind(this)
     this._handleDoubleClick = this._handleDoubleClick.bind(this)
     this._handleKeyDown = this._handleKeyDown.bind(this)
-    this._handleHistoryChange = this._handleHistoryChange.bind(this)
   }
 
-  componentWillMount() {
-    this._history = createHistory()
-    this._unlisten = this._history.listen(this._handleHistoryChange)
-  }
+  observe() {
+    const path$ = data.observable('/path').map(path => _.filter(path.split('/')))
+    const rootNode$ = asObservable(this.props.root)
 
-  componentWillUnmount() {
-    this._unlisten()
+    return {
+      path: path$,
+      // Build the grid of visible nodes from the path.
+      levels: path$.flatMapLatest(path =>
+        Rx.Observable.combineLatest(
+          // Add placeholder for root and map to observable of nodes.
+          [].concat(0, path).map((v, i) =>
+            nodeChildren$(nodeAtPath$(rootNode$, path.slice(0, i)))
+              .startWith([])
+          )
+        )
+      ),
+      // For every path, save the last selected child so we can use
+      // it as the default when descending into children.
+      lastChild: path$.scan((lastChild, path) => {
+        path.forEach((key, i) => {
+          lastChild[path.slice(0, i).join('/')] = key
+        })
+        return lastChild
+      }, this.data.lastChild || {}),
+      handlers: path$.flatMapLatest(path =>
+        nodeHandlers$(nodeAtPath$(rootNode$, path))
+      )
+    }
   }
 
   render() {
-    const path = this.state.path
+    const { path, levels } = this.data
 
-    // Build tree of items to be rendered.
-    const levels = [nodeChildren(this.props.root)]
-    path.toJS().forEach((key, depth) => {
-      const nextNode = levels[depth] && findNode(levels[depth], key)
-      const nextLevel = nextNode && nodeChildren(nextNode)
-      if (nextLevel) {
-        levels.push(nextLevel)
-      }
-    })
+    if (!levels) {
+      return null
+    }
 
     return <div
       style={{
@@ -91,9 +132,10 @@ class NodeUI extends Component {
         backgroundColor: this.props.styles.backgroundColor
       }}
     >
-      {levels.map((items, depth) => {
+      {levels.map((nodes, i) => {
+        const parentPath = path.slice(0, i)
         return <div
-          key={depth}
+          key={i}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -101,43 +143,45 @@ class NodeUI extends Component {
             overflow: 'auto'
           }}
         >
-          {items.map(item => this._renderItem(item, path.take(depth)))}
+          {nodes.map(node => this._renderNode(node, parentPath))}
         </div>
       })}
     </div>
   }
 
-  _renderItem(item, parentPath) {
-    if (isNode(item)) {
-      const path = parentPath.push(item.key)
+  _renderNode(node, parentPath) {
+    if (typeof node === 'string') {
+      node = {key: node, item: node}
+    }
+    const path = [].concat(parentPath, node.key)
+    const isFocusable = !!(node.nodes || node.handlers)
+    const isOnPath = isFocusable && this._isOnPath(path)
+    const isFocused = isOnPath && _.isEqual(path, this.data.path)
+    return <NodeItem
+      key={node.key}
+      path={path}
+      isFocusable={isFocusable}
+      isOnPath={isOnPath}
+      isFocused={isFocused}
+      styles={node.styles || this.props.styles}
+      onMouseDown={this._handleMouseDown}
+      onDoubleClick={this._handleDoubleClick}
+      onKeyDown={this._handleKeyDown}
+      item={nodeItem(node)}
+    />
+  }
 
-      return <Node
-        key={item.key}
-        path={path}
-        isFocused={path.equals(this.state.path)}
-        isOnPath={path.equals(this.state.path.take(path.size))}
-        styles={item.styles || this.props.styles}
-        onMouseDown={this._handleMouseDown}
-        onDoubleClick={this._handleDoubleClick}
-        onKeyDown={this._handleKeyDown}
-        item={nodeItem(item)}
-      />
+  // Optimised path comparison.
+  _isOnPath(path) {
+    if (path.length > this.data.path.length)
+      return false
+
+    for (var i = 0; i < path.length; i++) {
+      if (path[i] !== this.data.path[i])
+        return false
     }
-    else if (typeof item === 'string') {
-      // Give plain strings standard padding.
-      return <div
-        key={item}
-        style={{
-          padding: this.props.styles.padding,
-          color: this.props.styles.secondaryColor
-        }}
-      >
-        {item}
-      </div>
-    }
-    else {
-      return item
-    }
+
+    return true
   }
 
   _handleMouseDown(path, event) {
@@ -155,36 +199,34 @@ class NodeUI extends Component {
     switch (key) {
       case 'left':
         // Move to parent (if there is a parent).
-        if (path.size > 1) {
-          this._setPath(path.butLast())
+        if (path.length > 1) {
+          this._setPath(path.slice(0, -1))
           event.preventDefault()
         }
         break
       case 'right':
         // Move to child.
-        const childNodes = this._getChildNodes(path)
+        const childNodes = this.data.levels[path.length]
         // Check there is a child to go to.
         if (childNodes.length) {
-          // Prefer last child.
-          const lastChildKey = this.lastChild.get(path)
-          this._setPath(path.push(
-            findNode(childNodes, lastChildKey) ?
-              // Use last child if it exists.
-              lastChildKey :
-              // Fall back to first child.
-              childNodes[0].key
-          ))
+          const lastChildKey = this.data.lastChild[path.join('/')]
+          const nextKey = lastChildKey && childNodes.find(nodeWithKey(lastChildKey)) ?
+            // Prefer last child if it exists.
+            lastChildKey :
+            // Otherwise use the first child.
+            childNodes[0].key
+          this._setPath([].concat(path, nextKey))
           event.preventDefault()
         }
         break
       case 'up':
         // Move to prev sibling.
-        this._setPath(path.splice(-1, 1, this._getSiblingNode(path, -1).key))
+        this._setPath(path.slice(0, -1).concat(this._getSiblingNode(path, -1).key))
         event.preventDefault()
         break
       case 'down':
         // Move to next sibling.
-        this._setPath(path.splice(-1, 1, this._getSiblingNode(path, +1).key))
+        this._setPath(path.slice(0, -1).concat(this._getSiblingNode(path, +1).key))
         event.preventDefault()
         break
       default:
@@ -193,64 +235,29 @@ class NodeUI extends Component {
   }
 
   _tryHandler(path, name, event) {
-    const handlers = this._getHandlers(path)
+    const handlers = this.data.handlers
     if (handlers && handlers[name]) {
       handlers[name](event)
     }
   }
 
-  _getHandlers(path) {
-    return nodeHandlers(this._getNode(path))
-  }
-
-  _getNode(path) {
-    const node = findNodeFromPath(this.props.root, path.toJS())
-    if (!node) {
-      throw new Error('Node not found for path ' + path.toJS().join('/'))
-    }
-    return node
-  }
-
-  _getChildNodes(path) {
-    return nodeChildren(this._getNode(path)).filter(isNode)
-  }
-
   _getSiblingNode(path, indexIncrement) {
-    const siblings = Immutable.List(this._getChildNodes(path.butLast()))
-    const currentIndex = siblings.findIndex(node => node.key === path.last())
+    const siblings = this.data.levels[path.length - 1].filter(isNode)
+    const currentIndex = siblings.findIndex(nodeWithKey(path[path.length - 1]))
     var newIndex = currentIndex + indexIncrement
     // Loop to start.
-    while (newIndex >= siblings.size) {
-      newIndex -= siblings.size
+    while (newIndex >= siblings.length) {
+      newIndex -= siblings.length
     }
     // Loop to end.
     while (newIndex < 0) {
-      newIndex += siblings.size
+      newIndex += siblings.length
     }
-    return siblings.get(newIndex)
-  }
-
-  _handleHistoryChange({ pathname }) {
-    const path = Immutable.List(pathname.slice(1).split('/'))
-    // TODO: Check path is valid before setting it.
-    // It may come from user.
-    this._updateLastChild(path)
-    this.setState({path})
+    return siblings[newIndex]
   }
 
   _setPath(path) {
-    if (!Immutable.List.isList(path)) {
-      throw new Error('Path must be immutable list.')
-    }
-    this._history.replaceState(null, '/' + path.toJS().join('/'))
-  }
-
-  _updateLastChild(path) {
-    // Last child is a map of child keys, keyed by path (list).
-    // When updating, we update all ancestors, not just first parent.
-    this.lastChild = Immutable.Map(this.lastChild).merge(
-      path.map((key, i) => [path.take(i), key])
-    )
+    data.set('/path', '/' + path.join('/'))
   }
 }
 

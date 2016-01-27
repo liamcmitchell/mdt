@@ -1,25 +1,47 @@
-const fs = require('fs')
-const Rx = require('rx')
-const chokidar = require('chokidar')
+import fs from 'fs'
+import { basename } from 'path'
+import async from 'async'
+import chokidar from 'chokidar'
+import createSource from 'data/createSource'
+import { sortBy } from 'underscore'
 
-// Returns observable for file contents.
-// Errors if file doesn't exist or is deleted.
-function observable(url) {
-  // Url is relative to project root.
-  url = '.' + url
-  return Rx.Observable.create(observer => {
+function stat(path, cb) {
+  fs.stat(path, (err, stats) => {
+    if (err)
+      cb(err)
+    else
+      cb(null, {
+        name: basename(path),
+        size: stats.size,
+        isFile: stats.isFile(),
+        isDirectory: stats.isDirectory()
+      })
+  })
+}
+
+function ls(path, cb) {
+  fs.readdir(path, (err, items) => {
+    if (err)
+      cb(err)
+    else
+      async.map(items.map(item => path + '/' + item), stat, cb)
+  })
+}
+
+export default createSource({
+  OBSERVE: function(request, observer) {
+    // Url is relative to project root.
+    const url = '.' + request.url
     // TODO: Read could be shared with connected observable.
-    var read = () => {
-      fs.readdir(url, (error, data) => {
-        if (error) {
-          observer.onError(error)
-        }
-        else {
-          observer.onNext(data)
-        }
+    const read = () => {
+      ls(url, (err, items) => {
+        if (err)
+          observer.onError(err)
+        else
+          observer.onNext(sortBy(sortBy(items, 'name'), 'isFile'))
       })
     }
-    var watcher = chokidar.watch(url, {ignoreInitial: true})
+    const watcher = chokidar.watch(url, {ignoreInitial: true})
     watcher.on('add', read)
     watcher.on('unlink', read)
     watcher.on('addDir', read)
@@ -28,16 +50,5 @@ function observable(url) {
     read()
     // Return dispose function.
     return watcher.close.bind(watcher)
-  })
-}
-
-export default {
-  handle: function(request) {
-    if (request.method === 'OBSERVABLE') {
-      return observable(request.url)
-    }
-    else {
-      throw new Error('Method not supported.', request)
-    }
   }
-}
+})

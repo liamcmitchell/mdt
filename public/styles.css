@@ -10,7 +10,8 @@ html {
 /* Set sweet system fonts. */
 /* https://medium.com/@mwichary/system-shock-6b1dc6d6596f#.1853vypp7 */
 body {
-  font-family: -apple-system, ".SFNSText-Regular", "San Francisco", "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", sans-serif;
+  /*font-family: -apple-system, ".SFNSText-Regular", "San Francisco", "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", sans-serif;*/
+  font-family: monospace;
 }
 
 /* Make body 100% height. */

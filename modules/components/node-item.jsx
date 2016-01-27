@@ -1,11 +1,12 @@
 import React, { Component, PropTypes } from "react"
 
-class Node extends Component {
+class NodeItem extends Component {
   static propTypes = {
-    path: PropTypes.object.isRequired,
+    path: PropTypes.array.isRequired,
+    isFocusable: PropTypes.bool.isRequired,
     isFocused: PropTypes.bool.isRequired,
     isOnPath: PropTypes.bool.isRequired,
-    styles: PropTypes.object,
+    styles: PropTypes.object.isRequired,
     onMouseDown: PropTypes.func.isRequired,
     onDoubleClick: PropTypes.func.isRequired,
     onKeyDown: PropTypes.func.isRequired,
@@ -22,32 +23,35 @@ class Node extends Component {
   }
 
   render() {
+    const props = this.props
+    const styles = props.styles
     const style = Object.assign({
       // It is possible that we have the cursor but don't have focus
       // and therefore can't catch keyboard events. This is possible if
       // another element is focused without updating our cursor or if the
       // browser focus is lost.
       // To show that we don't have control we fade the entire node.
-      opacity: this.props.isFocused && !this.state.focused ? 0.7 : 1,
+      opacity: props.isFocused && !this.state.focused ? 0.7 : 1,
       // All node items respond to clicks.
-      cursor: "pointer",
+      cursor: props.isFocusable ? "pointer" : null,
       // Give default styling
-      backgroundColor: this.props.isOnPath ?
-        this.props.styles.backgroundHighlightColor :
+      backgroundColor: props.isOnPath ?
+        styles.backgroundHighlightColor :
         null
-    }, this.props.style)
+    }, props.style)
 
     // Provide basic styling if item is text.
-    const item = typeof this.props.item === "string" ?
+    const item = typeof props.item === "string" ?
       <div
         style={{
-          color: this.props.styles.primaryColor,
-          padding: this.props.styles.padding
+          color: props.isFocusable ? styles.primaryColor : styles.secondaryColor,
+          padding: styles.padding,
+          whiteSpace: 'pre'
         }}
       >
-        {this.props.item}
+        {props.item}
       </div> :
-      this.props.item
+      props.item
 
     return <div
       ref="wrapper"
@@ -55,9 +59,9 @@ class Node extends Component {
       tabIndex="-1"
       onFocus={this._handleFocus.bind(this)}
       onBlur={this._handleBlur.bind(this)}
-      onMouseDown={this.props.onMouseDown.bind(null, this.props.path)}
-      onDoubleClick={this.props.onDoubleClick.bind(null, this.props.path)}
-      onKeyDown={this.props.onKeyDown.bind(null, this.props.path)}
+      onMouseDown={props.isFocusable ? props.onMouseDown.bind(null, props.path) : null}
+      onDoubleClick={props.isFocusable ? props.onDoubleClick.bind(null, props.path) : null}
+      onKeyDown={props.isFocusable ? props.onKeyDown.bind(null, props.path) : null}
     >
       {item}
     </div>
@@ -92,6 +96,7 @@ class Node extends Component {
 
   shouldComponentUpdate(prevProps, prevState) {
     return (
+      prevProps.isFocusable !== this.props.isFocusable ||
       prevProps.isFocused !== this.props.isFocused ||
       prevProps.isOnPath !== this.props.isOnPath ||
       prevState.focused !== this.state.focused
@@ -127,4 +132,4 @@ class Node extends Component {
   }
 }
 
-export default Node
+export default NodeItem

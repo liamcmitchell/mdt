@@ -7,7 +7,7 @@ const node = {
       enter: () => console.log("yo, this is " + this.key)
     }
   },
-  children() {
+  nodes() {
     if (this.depth < 10) {
       var newDepth = this.depth + 1
       return "abcde".split("").map(letter =>

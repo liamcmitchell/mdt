@@ -1,7 +1,7 @@
 var webpack = require('webpack')
 var path = require('path')
 var fs = require('fs')
-var nodemon = require('nodemon')
+var forever = require('forever-monitor')
 var rm = require('rimraf')
 
 var buildDir = path.join(__dirname, 'build')
@@ -17,6 +17,8 @@ var jsLoader = {
     presets: ['es2015', 'stage-0', 'react']
   }
 }
+
+var jsonLoader = { test: /\.json$/, loader: 'json-loader' }
 
 var webpackStatsConfig = {
   colors: true,
@@ -52,7 +54,7 @@ var serverConfig = {
     extensions: ['', '.js', '.jsx', '.json']
   },
   module: {
-    loaders: [jsLoader]
+    loaders: [jsLoader, jsonLoader]
   },
   target: 'node',
   output: {
@@ -77,21 +79,12 @@ var serverConfig = {
   ]
 }
 
-var serverStarted = false
+var server = null
 function startServer() {
-  if (!serverStarted) {
-    // Start server process using nodemon.
-    nodemon({
-      execMap: {
-        js: 'node'
-      },
-      script: path.join(buildDirServer, 'server'),
-      // The following config stops nodemon from actually monitoring files.
-      ignore: ['*'],
-      watch: ['foo/'],
-      ext: 'noop'
-    })
-    serverStarted = true
+  if (!server) {
+    // Start server process using forever.
+    server = new (forever.Monitor)(path.join(buildDirServer, 'server.js'))
+    server.start()
   }
 }
 
@@ -104,7 +97,7 @@ var clientConfig = {
     extensions: ['', '.js', '.jsx', '.json']
   },
   module: {
-    loaders: [jsLoader]
+    loaders: [jsLoader, jsonLoader]
   },
   target: 'web',
   output: {

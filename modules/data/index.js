@@ -1,21 +1,29 @@
-import Router from './router'
+import createRouter from './createRouter'
 
 // Top level API
 export default function Data(sources) {
-  this.router = new Router(sources)
+  const route = createRouter(sources)
 
   this.observable = url => {
-    return this.router.handle({
+    return route({
       url: url,
-      method: 'OBSERVABLE'
+      method: 'OBSERVE'
     })
   }
 
   this.set = (url, data) => {
-    return this.router.handle({
+    return route({
       url: url,
       method: 'SET',
       data: data
     })
+  }
+
+  this.call = req => {
+    if (!req.method) {
+      throw new Error('Method name is required')
+    }
+
+    return route(req)
   }
 }

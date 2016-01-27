@@ -23,7 +23,7 @@ class App extends Component {
         padding: "10px 20px"
       }, colors.solarizedDark)}
       root={{
-        children: [
+        nodes: [
           mdtNode,
           dummyNode
         ]

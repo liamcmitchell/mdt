@@ -1,28 +1,49 @@
 /* globals __resourceQuery */
 const express = require('express')
+const bodyParser = require('body-parser')
 const fs = require('fs')
 const io = require('socket.io')
 const chokidar = require('chokidar')
 const Rx = require('rx')
+const data = require('server-data').default
 
 // Using ES6 modules so we need to get default export.
 let app = require('server-app').default
 
-var server = express()
+const server = express()
   // Serve compiled client assets.
   // TODO: Pass through to compiler in dev mode?
   .use('/_client', express.static('build/client'))
   // Serve static assets.
   .use('/_public', express.static('public'))
+  // Populate req.body for application/json.
+  .use(bodyParser.json())
   // Serve data requests.
-  // TODO: Is the app a node HTTP handler or a more general data handler
-  // that will work with websockets too?
-  // TODO: Namespace as above.
-  // If are using HMR, proxy the app so we can change it.
-  .use(module.hot ?
-    function() { return app.apply(app, arguments) } :
-    app
-  )
+  .use('/data', function(req, res, next) {
+
+    if (req.method === 'POST') {
+      const method = req.body.method
+
+      if (method === 'OBSERVE' || method === 'GET') {
+        res.status(400).json({error: 'OBSERVE and GET not allowed in POST'})
+      }
+
+      data.call({
+        url: req.url,
+        method: method,
+        data: req.body.data
+      })
+      .then(result => {
+        res.json(result)
+      }, err => {
+        res.status(500).json(err)
+      })
+
+    }
+    else {
+      next()
+    }
+  })
   // All other requests should have the index.html returned.
   .use((req, res) => {
     fs.readFile('public/index.html', (err, data) => {
@@ -38,8 +59,6 @@ var server = express()
 
 var websocketServer = io(server)
 
-var observable = require('server-data').default.observable
-
 websocketServer.on('connection', function (socket) {
   // Store all subscriptions on the socket.
   socket.subscriptions = {}
@@ -53,8 +72,8 @@ websocketServer.on('connection', function (socket) {
     // Add.
     subscriptions.forEach(url => {
       if (!socket.subscriptions[url]) {
-        socket.subscriptions[url] = observable(url).subscribe(data => {
-          socket.emit('data', {url: url, data: data})
+        socket.subscriptions[url] = data.observable(url).subscribe(d => {
+          socket.emit('data', {url: url, data: d})
         })
       }
     })
@@ -101,7 +120,8 @@ if (module.hot) {
     module.hot.check(true, function(error, disposedModules) {
       var status = module.hot.status()
       if (error && (status === 'abort' || status === 'fail')) {
-        console.log('Unable to hot reload, exiting.', error)
+        console.log('Unable to hot reload, restarting.')
+        // Relies on process being restarted by parent.
         process.exit(1)
       }
       else if (error) {

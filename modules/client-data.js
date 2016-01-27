@@ -1,14 +1,14 @@
 import Data from 'data'
-import serverSource from 'sources/server'
+import remoteSource from 'sources/remote'
 import pathSource from 'sources/path'
 
 function alias(route, source) {
-  return {
-    handle: function(request) {
-      return source.handle(Object.assign({}, request, {url: route + request.url}))
-    }
+  return function(request) {
+    return source(Object.assign({}, request, {url: route + request.url}))
   }
 }
+
+const serverSource = remoteSource(document.location.origin)
 
 const data = new Data({
   '/server': serverSource,
