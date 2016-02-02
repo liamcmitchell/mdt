@@ -52,8 +52,11 @@ export default class ObservableComponent extends Component {
         let oldSub = this.subscriptions[key]
         this.subscriptions[key] = o.subscribe(value => {
           this.data[key] = value
-
           !subscribing && this.forceUpdate()
+        }, err => {
+          // Make troubleshooting easier by pointing showing key.
+          console.error(new Error('Uncaught error in observable "' + key + '"'))
+          console.error(err)
         })
         oldSub && oldSub.dispose()
       }

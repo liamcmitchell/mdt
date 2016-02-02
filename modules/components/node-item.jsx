@@ -1,6 +1,8 @@
-import React, { Component, PropTypes } from "react"
+import React, { PropTypes } from 'react'
+import ObservableComponent from 'components/observable'
+import Rx from 'rx'
 
-class NodeItem extends Component {
+class NodeItem extends ObservableComponent {
   static propTypes = {
     path: PropTypes.array.isRequired,
     isFocusable: PropTypes.bool.isRequired,
@@ -10,7 +12,7 @@ class NodeItem extends Component {
     onMouseDown: PropTypes.func.isRequired,
     onDoubleClick: PropTypes.func.isRequired,
     onKeyDown: PropTypes.func.isRequired,
-    item: PropTypes.node.isRequired
+    item: PropTypes.object.isRequired
   }
 
   constructor(props, context) {
@@ -19,6 +21,18 @@ class NodeItem extends Component {
     this.state = {
       // isFocused being true doesn't guarantee that the element is focused.
       focused: false
+    }
+  }
+
+  observe() {
+    return {
+      item: this.props.item
+        .startWith('')
+        .catch(err => Rx.Observable.just(err.toString())),
+      itemErr: this.props.item
+        .startWith(false)
+        .map(() => false)
+        .catch(Rx.Observable.just(true))
     }
   }
 
@@ -41,17 +55,21 @@ class NodeItem extends Component {
     }, props.style)
 
     // Provide basic styling if item is text.
-    const item = typeof props.item === "string" ?
+    const item = typeof this.data.item === "string" ?
       <div
         style={{
-          color: props.isFocusable ? styles.primaryColor : styles.secondaryColor,
+          color: this.data.itemErr ?
+            styles.red :
+            props.isFocusable ?
+              styles.primaryColor :
+              styles.secondaryColor,
           padding: styles.padding,
           whiteSpace: 'pre'
         }}
       >
-        {props.item}
+        {this.data.item}
       </div> :
-      props.item
+      this.data.item
 
     return <div
       ref="wrapper"
