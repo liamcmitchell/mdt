@@ -29,8 +29,12 @@ function getProp$(prop, object$) {
   )
 }
 
-function isNode(el) {
-  return el && el.item
+function isNode(node) {
+  return node && node.key && node.item
+}
+
+function isFocusable(node) {
+  return node && node.focusable !== false
 }
 
 const nodeItem$ = getProp$.bind(null, 'item')
@@ -45,14 +49,7 @@ function nodeWithKey(key) {
 }
 
 function nodeAtPath$(node$, path) {
-  return path.length === 0 ?
-    // If there are no more pieces to the path, return current node.
-    node$ :
-    // Otherwise, continue with the next child.
-    nodeAtPath$(nodeChild$(node$, path[0]), path.slice(1))
-      .catch(Rx.Observable.throw(
-        new Error('Unable to find node at path ' + path.join('/'))
-      ))
+  return path.reduce(nodeChild$, node$)
 }
 
 function nodeChild$(node$, key) {
@@ -66,6 +63,25 @@ function nodeChild$(node$, key) {
         throw new Error('Child with key "' + key + '" not found')
     })
 }
+
+// To get prev or next item in array.
+function getSibling(array, item, indexIncrement) {
+    const currentIndex = array.indexOf(item)
+    if (currentIndex === -1) {
+      return item
+    }
+    var newIndex = currentIndex + indexIncrement
+    // Loop to start.
+    while (newIndex >= array.length) {
+      newIndex -= array.length
+    }
+    // Loop to end.
+    while (newIndex < 0) {
+      newIndex += array.length
+    }
+    return array[newIndex]
+  }
+
 
 const log = console.log.bind(console)
 
@@ -88,21 +104,30 @@ class NodeUI extends ObservableComponent {
 
   observe() {
     const path$ = data.observable('/path').map(path => _.filter(path.split('/')))
+    const nodeAt$ = nodeAtPath$.bind(null, asObservable(this.props.root))
+    const focusedNode$ = path$.flatMapLatest(nodeAt$)
 
     return {
       path: path$,
-      siblings: path$.flatMapLatest(path =>
-        nodeAtPath$(asObservable(this.props.root), path.slice(0, -1))
-          .flatMapLatest(nodeChildren$)
-          // Path may not point to valid node.
-          .catch(Rx.Observable.just([]))
-      ),
-      children: path$.flatMapLatest(path =>
-        nodeAtPath$(asObservable(this.props.root), path)
-          .flatMapLatest(nodeChildren$)
-          // Path may not point to valid node.
-          .catch(Rx.Observable.just([]))
-      ),
+      // Handlers for selected node.
+      handlers: focusedNode$
+        .flatMapLatest(nodeHandlers$)
+        // Path may not point to valid node.
+        .catch(Rx.Observable.just({})),
+      // Children of current node. Needed for right navigation.
+      // TODO: This triggers render but isn't actually used in render.
+      children: focusedNode$
+        .flatMapLatest(nodeChildren$)
+        // Path may not point to valid node.
+        .catch(Rx.Observable.just([])),
+      // Siblings of current node. needed for up/down navigation.
+      // TODO: This triggers render but isn't actually used in render.
+      siblings: path$
+        .map(path => path.slice(0, -1))
+        .flatMapLatest(nodeAt$)
+        .flatMapLatest(nodeChildren$)
+        // Path may not point to valid node.
+        .catch(Rx.Observable.just([])),
       // For every path, save the last selected child so we can use
       // it as the default when descending into children.
       lastChild: path$.scan((lastChild, path) => {
@@ -110,14 +135,7 @@ class NodeUI extends ObservableComponent {
           lastChild[path.slice(0, i).join('/')] = key
         })
         return lastChild
-      }, this.data.lastChild || {}),
-      // Handlers for selected node.
-      handlers: path$.flatMapLatest(path =>
-        nodeAtPath$(asObservable(this.props.root), path)
-          .flatMapLatest(nodeHandlers$)
-          // Path may not point to valid node.
-          .catch(Rx.Observable.just({}))
-      )
+      }, this.data.lastChild || {})
     }
   }
 
@@ -133,11 +151,11 @@ class NodeUI extends ObservableComponent {
       }}
     >
       {pathToSubPaths(path).map((subPath, i) =>
-        <NodeCol
+        <NodeChildren
           key={i}
-          path={path}
-          subPath={subPath}
-          nextKey={path[i]}
+          path={subPath}
+          selected={path[i]}
+          selectedIsFocused={path.length === i + 1}
           root={this.props.root}
           styles={this.props.styles}
           onMouseDown={this._handleMouseDown}
@@ -170,7 +188,7 @@ class NodeUI extends ObservableComponent {
         break
       case 'right':
         // Move to child.
-        const children = this.data.children
+        const children = (this.data.children || []).filter(isFocusable)
         // Check there is a child to go to.
         if (children.length) {
           const lastChildKey = this.data.lastChild[path.join('/')]
@@ -185,12 +203,12 @@ class NodeUI extends ObservableComponent {
         break
       case 'up':
         // Move to prev sibling.
-        this._setPath(path.slice(0, -1).concat(this._getSiblingNode(path, -1).key))
+        this._setPath(path.slice(0, -1).concat(this._getSiblingNode(path, -1)))
         event.preventDefault()
         break
       case 'down':
         // Move to next sibling.
-        this._setPath(path.slice(0, -1).concat(this._getSiblingNode(path, +1).key))
+        this._setPath(path.slice(0, -1).concat(this._getSiblingNode(path, +1)))
         event.preventDefault()
         break
       default:
@@ -206,18 +224,7 @@ class NodeUI extends ObservableComponent {
   }
 
   _getSiblingNode(path, indexIncrement) {
-    const nodes = this.data.siblings.filter(isNode)
-    const currentIndex = nodes.findIndex(nodeWithKey(path[path.length - 1]))
-    var newIndex = currentIndex + indexIncrement
-    // Loop to start.
-    while (newIndex >= nodes.length) {
-      newIndex -= nodes.length
-    }
-    // Loop to end.
-    while (newIndex < 0) {
-      newIndex += nodes.length
-    }
-    return nodes[newIndex]
+    return getSibling(this.data.siblings.filter(isFocusable).map(n => n.key), path[path.length - 1], indexIncrement)
   }
 
   _setPath(path) {
@@ -225,32 +232,40 @@ class NodeUI extends ObservableComponent {
   }
 }
 
-class NodeCol extends ObservableComponent {
+class NodeChildren extends ObservableComponent {
+
+  shouldComponentUpdate(prevProps, prevState) {
+    return (
+      prevProps.selected !== this.props.selected ||
+      prevProps.selectedIsFocused !== this.props.selectedIsFocused ||
+      prevProps.root !== this.props.root ||
+      prevProps.styles !== this.props.styles ||
+      !_.isEqual(prevProps.path, this.props.path)
+    )
+  }
+
   observe(props) {
-    const { root, subPath, nextKey } = props
+    const { root, path, selected } = props
     return {
-      nodes: nodeAtPath$(asObservable(root), subPath)
+      nodes: nodeAtPath$(asObservable(root), path)
         // Get children.
         .flatMapLatest(nodeChildren$)
-        // Starting with an empty array means that levels will update
-        // immediately, even if there is not yet data to display.
-        .startWith([])
         // Show dummy node if there was an error getting the nodes.
         .catch(err => {
           console.error(err)
           return asObservable([{
             key: '',
             item: Rx.Observable.throw(
-              new Error("Can't find children for " + subPath.join('/'))
+              new Error("Can't find children for " + path.join('/'))
             )
           }])
         })
         .map(nodes => {
           // If the next node isn't there, add a placeholder for error.
-          if (nextKey && !nodes.find(nodeWithKey(nextKey))) {
+          if (selected && !nodes.find(nodeWithKey(selected))) {
             const dummy = {
-              key: nextKey,
-              item: Rx.Observable.throw(new Error(nextKey + ' not found'))
+              key: selected,
+              item: Rx.Observable.throw(new Error(selected + ' not found'))
             }
             nodes = _.sortBy([].concat(nodes, dummy), 'key')
           }
@@ -274,19 +289,19 @@ class NodeCol extends ObservableComponent {
         overflow: 'auto'
       }}
     >
-      {this.data.nodes.map(node => this._renderNode(node))}
+      {(this.data.nodes || []).map(node => this._renderNode(node))}
     </div>
   }
 
   _renderNode(node) {
     const props = this.props
-    const path = [].concat(props.subPath, node.key)
-    const isOnPath = props.nextKey === node.key
-    const isFocused = isOnPath && path.length === props.path.length
+    const path = [].concat(props.path, node.key)
+    const isOnPath = props.selected === node.key
+    const isFocused = isOnPath && props.selectedIsFocused
     return <NodeItem
       key={node.key}
       path={path}
-      isFocusable={node.focusable !== false}
+      isFocusable={isFocusable(node)}
       isOnPath={isOnPath}
       isFocused={isFocused}
       styles={node.styles || props.styles}

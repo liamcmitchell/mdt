@@ -55,7 +55,8 @@ class NodeItem extends ObservableComponent {
     }, props.style)
 
     // Provide basic styling if item is text.
-    const item = typeof this.data.item === "string" ?
+    const item = this.data.item || ''
+    const content = typeof item === "string" ?
       <div
         style={{
           color: this.data.itemErr ?
@@ -67,9 +68,9 @@ class NodeItem extends ObservableComponent {
           whiteSpace: 'pre'
         }}
       >
-        {this.data.item}
+        {item}
       </div> :
-      this.data.item
+      item
 
     return <div
       ref="wrapper"
@@ -81,7 +82,7 @@ class NodeItem extends ObservableComponent {
       onDoubleClick={props.isFocusable ? props.onDoubleClick.bind(null, props.path) : null}
       onKeyDown={props.isFocusable ? props.onKeyDown.bind(null, props.path) : null}
     >
-      {item}
+      {content}
     </div>
   }
 

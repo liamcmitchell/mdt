@@ -1,3 +1,4 @@
+
 // Public interface.
 MDT = function MDT(config) {
   this.router = new Router({

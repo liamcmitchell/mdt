@@ -18,12 +18,12 @@ export default class ObservableComponent extends Component {
     this.subscriptions = {}
 
     this.componentWillMount = wrapMethod(this, this.componentWillMount, function() {
-      this._subscribeObservables(this.props, this.state)
+      this._subscribeObservables(this.props)
     }.bind(this))
 
     this.componentWillUpdate = wrapMethod(this, this.componentWillUpdate,
-      function(nextProps, nextState) {
-        this._subscribeObservables(nextProps, nextState)
+      function(nextProps) {
+        this._subscribeObservables(nextProps)
       }.bind(this)
     )
 
@@ -32,12 +32,14 @@ export default class ObservableComponent extends Component {
     }.bind(this))
   }
 
-  observe(props, state) {
+  observe(props) {
     return {}
   }
 
-  _subscribeObservables(props, state) {
-    const observables = this.observe(props, state)
+  _subscribeObservables(props) {
+    // Prevent subscription loops.
+    if (this._observableUpdate) return
+    const observables = this.observe(props)
     // Used to prevent forceUpdate call when observables resolve immediately.
     let subscribing = true
 
@@ -51,8 +53,14 @@ export default class ObservableComponent extends Component {
 
         let oldSub = this.subscriptions[key]
         this.subscriptions[key] = o.subscribe(value => {
+          const oldValue = this.data[key]
           this.data[key] = value
-          !subscribing && this.forceUpdate()
+          if (!subscribing && value !== oldValue) {
+            // Mark that we are updating because of observable to prevent subscription loops.
+            this._observableUpdate = true
+            this.forceUpdate()
+            this._observableUpdate = false
+          }
         }, err => {
           // Make troubleshooting easier by pointing showing key.
           console.error(new Error('Uncaught error in observable "' + key + '"'))
