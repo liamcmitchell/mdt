@@ -113,12 +113,12 @@ class NodeItem extends ObservableComponent {
     }
   }
 
-  shouldComponentUpdate(prevProps, prevState) {
+  shouldComponentUpdate(nextProps, nextState) {
     return (
-      prevProps.isFocusable !== this.props.isFocusable ||
-      prevProps.isFocused !== this.props.isFocused ||
-      prevProps.isOnPath !== this.props.isOnPath ||
-      prevState.focused !== this.state.focused
+      nextProps.isFocusable !== this.props.isFocusable ||
+      nextProps.isFocused !== this.props.isFocused ||
+      nextProps.isOnPath !== this.props.isOnPath ||
+      nextState.focused !== this.state.focused
     )
   }
 

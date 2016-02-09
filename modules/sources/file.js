@@ -7,6 +7,7 @@ export default createSource({
   OBSERVE: function(request, observer) {
     // Url is relative to project root.
     const url = '.' + request.url
+
     // TODO: Read could be shared with connected observable.
     const read = () => {
       fs.readFile(url, 'utf-8', (error, data) => {

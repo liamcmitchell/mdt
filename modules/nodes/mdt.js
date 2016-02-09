@@ -9,7 +9,7 @@ export default {
     {
       key: 'dir',
       item: 'local',
-      nodes: fsNodes('/')
+      nodes: fsNodes('')
     }
   ]
 }

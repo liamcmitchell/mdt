@@ -152,7 +152,7 @@ class NodeUI extends ObservableComponent {
     >
       {pathToSubPaths(path).map((subPath, i) =>
         <NodeChildren
-          key={i}
+          key={subPath.join('/')}
           path={subPath}
           selected={path[i]}
           selectedIsFocused={path.length === i + 1}
@@ -234,13 +234,13 @@ class NodeUI extends ObservableComponent {
 
 class NodeChildren extends ObservableComponent {
 
-  shouldComponentUpdate(prevProps, prevState) {
+  shouldComponentUpdate(nextProps, nextState) {
     return (
-      prevProps.selected !== this.props.selected ||
-      prevProps.selectedIsFocused !== this.props.selectedIsFocused ||
-      prevProps.root !== this.props.root ||
-      prevProps.styles !== this.props.styles ||
-      !_.isEqual(prevProps.path, this.props.path)
+      nextProps.selected !== this.props.selected ||
+      nextProps.selectedIsFocused !== this.props.selectedIsFocused ||
+      nextProps.root !== this.props.root ||
+      nextProps.styles !== this.props.styles ||
+      !_.isEqual(nextProps.path, this.props.path)
     )
   }
 
