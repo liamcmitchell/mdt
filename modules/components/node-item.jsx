@@ -27,7 +27,6 @@ class NodeItem extends ObservableComponent {
   observe() {
     return {
       item: this.props.item
-        .startWith('')
         .catch(err => Rx.Observable.just(err.toString())),
       itemErr: this.props.item
         .startWith(false)

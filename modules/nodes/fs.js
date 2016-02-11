@@ -6,8 +6,11 @@ export default function fsNodes(path) {
       key: item.name,
       item: item.name + (item.isDirectory ? '/' : ''),
       nodes: item.isFile ?
-        data.observable('/file' + path + '/' + item.name)
-          .map(content => [{key: 'content', item: content, focusable: false}]) :
+        [{
+          key: 'content',
+          item: data.observable('/file' + path + '/' + item.name),
+          focusable: false
+        }] :
         fsNodes(path + '/' + item.name),
       handlers: item.isFile ? {
         enter: function() {

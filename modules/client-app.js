@@ -1,10 +1,7 @@
-import React, { Component } from "react"
-import NodeUI from "components/node-ui"
-import colors from "lib/colors"
-import mdtNode from "nodes/mdt"
-import dummyNode from "nodes/dummy"
-
-import Test from 'components/test'
+import React, { Component } from 'react'
+import NodeUI from 'components/node-ui'
+import colors from 'lib/colors'
+import rootNode from 'nodes/root'
 
 class App extends Component {
   componentWillMount() {
@@ -20,20 +17,11 @@ class App extends Component {
   render() {
     return <NodeUI
       styles={Object.assign({
-        padding: "10px 20px"
+        padding: '10px 20px'
       }, colors.solarizedDark)}
-      root={{
-        nodes: [
-          mdtNode,
-          dummyNode
-        ]
-      }}
+      root={rootNode}
     />
   }
-
-  // render() {
-  //   return <Test text="yo dawg" />
-  // }
 }
 
 export default App

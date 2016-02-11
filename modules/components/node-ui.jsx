@@ -68,7 +68,7 @@ function nodeChild$(node$, key) {
 function getSibling(array, item, indexIncrement) {
     const currentIndex = array.indexOf(item)
     if (currentIndex === -1) {
-      return item
+      throw new Error("Can't find item in array")
     }
     var newIndex = currentIndex + indexIncrement
     // Loop to start.
@@ -197,18 +197,18 @@ class NodeUI extends ObservableComponent {
             lastChildKey :
             // Otherwise use the first child.
             children[0].key
-          this._setPath([].concat(path, nextKey))
+          this._setPath(path.concat(nextKey))
           event.preventDefault()
         }
         break
       case 'up':
         // Move to prev sibling.
-        this._setPath(path.slice(0, -1).concat(this._getSiblingNode(path, -1)))
+        this._setPath(this._getSiblingPath(-1))
         event.preventDefault()
         break
       case 'down':
         // Move to next sibling.
-        this._setPath(path.slice(0, -1).concat(this._getSiblingNode(path, +1)))
+        this._setPath(this._getSiblingPath(+1))
         event.preventDefault()
         break
       default:
@@ -223,8 +223,11 @@ class NodeUI extends ObservableComponent {
     }
   }
 
-  _getSiblingNode(path, indexIncrement) {
-    return getSibling(this.data.siblings.filter(isFocusable).map(n => n.key), path[path.length - 1], indexIncrement)
+  _getSiblingPath(indexIncrement) {
+    const path = this.data.path
+    const keys = this.data.siblings.filter(isFocusable).map(n => n.key)
+    const currentKey = path[path.length - 1]
+    return path.slice(0, -1).concat(getSibling(keys, currentKey, indexIncrement))
   }
 
   _setPath(path) {
@@ -251,6 +254,8 @@ class NodeChildren extends ObservableComponent {
         // Get children.
         .flatMapLatest(nodeChildren$)
         // Show dummy node if there was an error getting the nodes.
+        // TODO: This dummy node isn't available to parent so the up/down kb handler
+        // doesn't know which node to pass focus to.
         .catch(err => {
           console.error(err)
           return asObservable([{
@@ -281,13 +286,26 @@ class NodeChildren extends ObservableComponent {
   }
 
   render() {
+    const isOptions = !this.props.selected
+    const isFocused = this.props.selectedIsFocused
+    const isCompact = this.props.selected && !isFocused
     return <div
       style={{
+        backgroundColor: this.props.styles.backgroundColor,
         display: 'flex',
         flexDirection: 'column',
         maxHeight: '100%',
-        overflow: 'auto'
+        overflow: isCompact ? 'hidden' : 'auto',
+        transition: 'all 0.2s',
+        width: isCompact ?
+          10 :
+          isFocused ? 200 : 'auto',
+        flexGrow: isOptions ? 1 : 0,
+        flexShrink: isOptions ? 1 : 0,
+        boxShadow: '-2px 0 2px 0 rgba(0, 0, 0, 0.2)',
+        cursor: isCompact ? 'pointer' : null
       }}
+      onClick={isCompact ? this._handleClick.bind(this) : null}
     >
       {(this.data.nodes || []).map(node => this._renderNode(node))}
     </div>
@@ -310,6 +328,10 @@ class NodeChildren extends ObservableComponent {
       onDoubleClick={props.onDoubleClick}
       onKeyDown={props.onKeyDown}
     />
+  }
+
+  _handleClick(event) {
+    this.props.onMouseDown(this.props.path, event)
   }
 }
 
