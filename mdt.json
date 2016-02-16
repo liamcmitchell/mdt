@@ -1,3 +1,14 @@
 {
-  "mdtVersion": "1.0.0"
+  "null": null,
+  "boolean": true,
+  "string": "hello",
+  "number": 123,
+  "array": [
+    1,
+    2,
+    3
+  ],
+  "object": {
+    "key": "value"
+  }
 }

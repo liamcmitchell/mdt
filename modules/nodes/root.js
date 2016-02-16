@@ -1,11 +1,13 @@
 import localNode from './local'
 import dummyNode from './dummy'
-import packageNode from './package'
+import jsonNode from './json'
+import fsJsonNode from './fs-json'
 
 export default {
   nodes: [
     dummyNode,
     localNode,
-    // packageNode
+    jsonNode,
+    fsJsonNode
   ]
 }

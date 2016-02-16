@@ -2,6 +2,11 @@ import React, { PropTypes } from 'react'
 import ObservableComponent from 'components/observable'
 import Rx from 'rx'
 
+// Turn object into observable if it isn't already.
+function asObservable(v) {
+  return Rx.Observable.isObservable(v) ? v : Rx.Observable.just(v)
+}
+
 class NodeItem extends ObservableComponent {
   static propTypes = {
     path: PropTypes.array.isRequired,
@@ -12,7 +17,7 @@ class NodeItem extends ObservableComponent {
     onMouseDown: PropTypes.func.isRequired,
     onDoubleClick: PropTypes.func.isRequired,
     onKeyDown: PropTypes.func.isRequired,
-    item: PropTypes.object.isRequired
+    item: PropTypes.any.isRequired
   }
 
   constructor(props, context) {
@@ -24,11 +29,12 @@ class NodeItem extends ObservableComponent {
     }
   }
 
-  observe() {
+  observe(props) {
+    const item = asObservable(props.item)
     return {
-      item: this.props.item
+      item: item
         .catch(err => Rx.Observable.just(err.toString())),
-      itemErr: this.props.item
+      itemErr: item
         .startWith(false)
         .map(() => false)
         .catch(Rx.Observable.just(true))
@@ -117,7 +123,8 @@ class NodeItem extends ObservableComponent {
       nextProps.isFocusable !== this.props.isFocusable ||
       nextProps.isFocused !== this.props.isFocused ||
       nextProps.isOnPath !== this.props.isOnPath ||
-      nextState.focused !== this.state.focused
+      nextState.focused !== this.state.focused ||
+      !Rx.Observable.isObservable(nextProps.item) && nextProps.item !== this.props.item
     )
   }
 

@@ -3,9 +3,10 @@ const node = {
   depth: 0,
   item: "dummy",
   handlers: function() {
-    return {
-      enter: () => console.log("yo, this is " + this.key + " from level " + this.depth)
-    }
+    return [{
+      key: 'enter',
+      fn: () => console.log("yo, this is " + this.key + " from level " + this.depth)
+    }]
   },
   nodes() {
     if (this.depth < 100) {

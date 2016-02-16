@@ -1,5 +1,4 @@
 import React from "react"
-import Item from "components/item"
 
 // Used to input number.
 export default React.createClass({
@@ -16,7 +15,7 @@ export default React.createClass({
   },
 
   render() {
-    var node = this.state.active ?
+    return this.state.active ?
       <input
         type="number"
         value={this.props.value}
@@ -25,15 +24,6 @@ export default React.createClass({
         ref="input"
       /> :
       this.props.value + ""
-
-    return (
-      <Item {...this.props}
-        node={node}
-        keyHandlers={{
-          enter: this._handleEnter
-        }}
-      />
-    )
   },
 
   _handleInputChange(event) {

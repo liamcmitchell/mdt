@@ -32,5 +32,15 @@ export default createSource({
     const url = '.' + request.url
     open(url)
     promise.resolve()
+  },
+  SET: function(request, promise) {
+    // Url is relative to project root.
+    const url = '.' + request.url
+    fs.writeFile(url, request.data, err => {
+      if (err)
+        promise.reject(err)
+      else
+        promise.resolve()
+    })
   }
 })

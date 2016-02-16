@@ -14,6 +14,7 @@ export default class ObservableComponent extends Component {
     super(props, context)
 
     this.data = {}
+    this.dataReady = {}
     this.observables = {}
     this.subscriptions = {}
 
@@ -46,28 +47,31 @@ export default class ObservableComponent extends Component {
     for (let key in observables) {
       let o = observables[key]
 
-      // Only continue if observable is new.
-      if (this.observables[key] !== o) {
-
-        this.observables[key] = o
-
-        let oldSub = this.subscriptions[key]
-        this.subscriptions[key] = o.subscribe(value => {
-          const oldValue = this.data[key]
-          this.data[key] = value
-          if (!subscribing && value !== oldValue) {
-            // Mark that we are updating because of observable to prevent subscription loops.
-            this._observableUpdate = true
-            this.forceUpdate()
-            this._observableUpdate = false
-          }
-        }, err => {
-          // Make troubleshooting easier by pointing showing key.
-          console.error(new Error('Uncaught error in observable "' + key + '"'))
-          console.error(err)
-        })
-        oldSub && oldSub.dispose()
+      // Skip subscription if it is the same observable.
+      if (this.observables[key] === o) {
+        break
       }
+
+      this.observables[key] = o
+      this.dataReady[key] = !!this.dataReady[key]
+
+      let oldSub = this.subscriptions[key]
+      this.subscriptions[key] = o.subscribe(value => {
+        const oldValue = this.data[key]
+        this.data[key] = value
+        this.dataReady[key] = true
+        if (!subscribing && value !== oldValue) {
+          // Mark that we are updating because of observable to prevent subscription loops.
+          this._observableUpdate = true
+          this.forceUpdate()
+          this._observableUpdate = false
+        }
+      }, err => {
+        // Make troubleshooting easier by pointing showing key.
+        console.error(new Error('Uncaught error in observable "' + key + '"'))
+        console.error(err)
+      })
+      oldSub && oldSub.dispose()
     }
 
     subscribing = false
