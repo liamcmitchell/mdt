@@ -99,58 +99,17 @@ class NodeUI extends ObservableComponent {
     this.lastChild = {}
   }
 
-  observe(props) {
-    const path$ = data.observable('/path').map(path => _.filter(path.split('/')))
-    const nodeAt$ = nodeAtPath$.bind(null, $(props.root))
-    const focusedNode$ = path$.flatMapLatest(nodeAt$)
-
-    // Need to push observables needed for event handlers/callbacks, into
-    // the render tree. Observables can return functions. This could be optimised by
-    // returning a wrapper function that always calls the latest fn returned from it's
-    // observable. Don't get carried away with this though.
-
-    return {
-      // Path is still used in event handlers
-      path: path$,
-      // Handlers for selected node.
-      handlers: focusedNode$
-        .flatMapLatest(nodeHandlers$)
-        // Path may not point to valid node.
-        .catch(Rx.Observable.just([])),
-      // Children of current node. Needed for right navigation.
-      // TODO: This triggers render but isn't actually used in render.
-      children: focusedNode$
-        .flatMapLatest(nodeChildren$)
-        // Path may not point to valid node.
-        .catch(Rx.Observable.just([])),
-      // Siblings of current node. needed for up/down navigation.
-      // TODO: This triggers render but isn't actually used in render.
-      siblings: path$
-        .map(path => path.slice(0, -1))
-        .flatMapLatest(nodeAt$)
-        .flatMapLatest(nodeChildren$)
-        // Path may not point to valid node.
-        .catch(Rx.Observable.just([])),
-      // For every path, save the last selected child so we can use
-      // it as the default when descending into children.
-      lastChild: path$.scan((lastChild, path) => {
-        path.forEach((key, i) => {
-          lastChild[path.slice(0, i).join('/')] = key
-        })
-        return lastChild
-      }, this.data.lastChild || {})
-    }
-  }
-
   render() {
     const props = this.props
     const path$ = data.observable('/path').map(path => _.filter(path.split('/')))
     const nodeAt$ = nodeAtPath$.bind(null, $(props.root))
     const focusedNode$ = path$.flatMapLatest(nodeAt$)
+
     const focusedNodeHandlers$ = focusedNode$
       .flatMapLatest(nodeHandlers$)
       // Path may not point to valid node.
       .catch(Rx.Observable.just([]))
+
     // Siblings of current node. needed for up/down navigation.
     const siblings$ = path$
       .map(path => path.slice(0, -1))
@@ -158,11 +117,13 @@ class NodeUI extends ObservableComponent {
       .flatMapLatest(nodeChildren$)
       // Path may not point to valid node.
       .catch(Rx.Observable.just([]))
+
     // Children of current node. Needed for right navigation.
     const children$ = focusedNode$
       .flatMapLatest(nodeChildren$)
       // Path may not point to valid node.
       .catch(Rx.Observable.just([]))
+
     // For every path, save the last selected child so we can use
     // it as the default when descending into children.
     const lastChild$ = path$.scan((lastChild, path) => {
@@ -172,8 +133,64 @@ class NodeUI extends ObservableComponent {
       return lastChild
     }, this.lastChild)
 
+    const leftHandler$ = path$.map(path => ({
+      key: 'left',
+      fn: () => {
+        if (path.length > 1) {
+          setPath(path.slice(0, -1))
+        }
+      }
+    }))
+
+    const upDownHandlers$ = Rx.Observable.combineLatest(
+      [path$, siblings$],
+      (path, siblings) => {
+        // Handler is used by both up & down.
+        const fn = (event) => {
+          const key = keycode(event)
+          const currentKey = path[path.length - 1]
+          const keys = siblings.filter(isFocusable).map(n => n.key)
+          // Siblings may be empty if there is a bad url (we still show error).
+          if (keys.length) {
+            setPath(path.slice(0, -1).concat(
+              getLoopingArrayItem(keys, _.contains(keys, currentKey) ?
+                // If the current key exists, we want a key relative to it.
+                keys.indexOf(currentKey) + (key === 'up' ? -1 : +1) :
+                // Otherwise pick the first or last key.
+                key === 'up' ? -1 : 0
+              )
+            ))
+          }
+        }
+        return [
+          {key: 'up', fn: fn},
+          {key: 'down', fn: fn}
+        ]
+      })
+      .startWith([])
+
+    const rightHandler$ = Rx.Observable.combineLatest(
+      [path$, children$, lastChild$],
+      (path, children, lastChild) => ({
+        key: 'right',
+        fn: () => {
+          // Move to child.
+          const focusable = children.filter(isFocusable)
+          const lastChildKey = lastChild[path.join('/')]
+          // Check there is a child to go to.
+          if (focusable.length) {
+            setPath(path.concat(
+              // Prefer last child if it exists, otherwise use the first.
+              lastChildKey && focusable.find(nodeWithKey(lastChildKey)) ?
+                lastChildKey :
+                focusable[0].key
+            ))
+          }
+        }
+      }))
+      .startWith([])
+
     const handleDoubleClick$ = focusedNodeHandlers$.map(handlers => (path, event) => {
-      console.log('doubleclick', path, event, handlers)
       const handler = _.findWhere(handlers, {key: 'enter'})
       if (handler) {
         handler.fn(event)
@@ -181,68 +198,19 @@ class NodeUI extends ObservableComponent {
       }
     })
 
-    const handleKeyDown$ = Rx.Observable.combineLatest(
-      [path$, siblings$, focusedNodeHandlers$, children$, lastChild$],
-      (path, siblings, handlers, children, lastChild) => {
-        console.log(path, siblings, handlers, children, lastChild)
-        return (path, event) => {
-          const data = {path, siblings, handlers, children, lastChild}
-          const upDownFn = (event) => {
-            const key = keycode(event)
-            const path = data.path
-            const currentKey = path[path.length - 1]
-            const keys = data.siblings.filter(isFocusable).map(n => n.key)
-            // Siblings may be empty if there is a bad url (we still show error).
-            if (keys.length) {
-              setPath(path.slice(0, -1).concat(
-                getLoopingArrayItem(keys, _.contains(keys, currentKey) ?
-                  // If the current key exists, we want a key relative to it.
-                  keys.indexOf(currentKey) + (key === 'up' ? -1 : +1) :
-                  // Otherwise pick the first or last key.
-                  key === 'up' ? -1 : 0
-                )
-              ))
-            }
-          }
-          const handlers = (data.handlers || []).concat([
-            {
-              key: 'left',
-              fn: () => {
-                if (path.length > 1) {
-                  setPath(path.slice(0, -1))
-                }
-              }
-            },
-            {
-              key: 'right',
-              fn: () => {
-                // Move to child.
-                const children = (data.children || []).filter(isFocusable)
-                // Check there is a child to go to.
-                if (children.length) {
-                  const lastChildKey = data.lastChild[path.join('/')]
-                  const nextKey = lastChildKey && children.find(nodeWithKey(lastChildKey)) ?
-                    // Prefer last child if it exists.
-                    lastChildKey :
-                    // Otherwise use the first child.
-                    children[0].key
-                  setPath(path.concat(nextKey))
-                }
-              }
-            },
-            {key: 'up', fn: upDownFn},
-            {key: 'down', fn: upDownFn}
-          ])
+    const allHandlers$ = Rx.Observable.combineLatest(
+      [focusedNodeHandlers$, leftHandler$, upDownHandlers$, rightHandler$]
+    ).map(_.flatten)
 
-          const handler = _.findWhere(handlers, {key: keycode(event)})
-          if (handler) {
-            handler.fn(event)
-            event.preventDefault()
-          }
+    const handleKeyDown$ = allHandlers$.map(handlers => {
+      return (path, event) => {
+        const handler = _.findWhere(handlers, {key: keycode(event)})
+        if (handler) {
+          handler.fn(event)
+          event.preventDefault()
         }
       }
-    )
-
+    })
 
     return <Combinator>
       <div
@@ -292,62 +260,6 @@ class NodeUI extends ObservableComponent {
         </div>
       </div>
     </Combinator>
-  }
-
-  // Requires: path, siblings, handlers, children, lastchild
-  _handleKeyDown(path, event) {
-    const upDownFn = (event) => {
-      const key = keycode(event)
-      const path = this.data.path
-      const currentKey = path[path.length - 1]
-      const keys = this.data.siblings.filter(isFocusable).map(n => n.key)
-      // Siblings may be empty if there is a bad url (we still show error).
-      if (keys.length) {
-        setPath(path.slice(0, -1).concat(
-          getLoopingArrayItem(keys, _.contains(keys, currentKey) ?
-            // If the current key exists, we want a key relative to it.
-            keys.indexOf(currentKey) + (key === 'up' ? -1 : +1) :
-            // Otherwise pick the first or last key.
-            key === 'up' ? -1 : 0
-          )
-        ))
-      }
-    }
-    const handlers = (this.data.handlers || []).concat([
-      {
-        key: 'left',
-        fn: () => {
-          if (path.length > 1) {
-            setPath(path.slice(0, -1))
-          }
-        }
-      },
-      {
-        key: 'right',
-        fn: () => {
-          // Move to child.
-          const children = (this.data.children || []).filter(isFocusable)
-          // Check there is a child to go to.
-          if (children.length) {
-            const lastChildKey = this.data.lastChild[path.join('/')]
-            const nextKey = lastChildKey && children.find(nodeWithKey(lastChildKey)) ?
-              // Prefer last child if it exists.
-              lastChildKey :
-              // Otherwise use the first child.
-              children[0].key
-            setPath(path.concat(nextKey))
-          }
-        }
-      },
-      {key: 'up', fn: upDownFn},
-      {key: 'down', fn: upDownFn}
-    ])
-
-    const handler = _.findWhere(handlers, {key: keycode(event)})
-    if (handler) {
-      handler.fn(event)
-      event.preventDefault()
-    }
   }
 }
 

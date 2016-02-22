@@ -26,7 +26,7 @@ function fsNodes(path) {
           })
         }
       }] :
-      null
+      []
     }))
   )
 }

@@ -21,7 +21,7 @@ export default function fsNodes(path) {
           })
         }
       }] :
-      null
+      []
     }))
   )
 }

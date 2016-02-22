@@ -29,6 +29,16 @@ class NodeItem extends ObservableComponent {
     }
   }
 
+  shouldComponentUpdate(nextProps, nextState) {
+    return (
+      nextProps.isFocusable !== this.props.isFocusable ||
+      nextProps.isFocused !== this.props.isFocused ||
+      nextProps.isOnPath !== this.props.isOnPath ||
+      nextState.focused !== this.state.focused ||
+      !Rx.Observable.isObservable(nextProps.item) && nextProps.item !== this.props.item
+    )
+  }
+
   observe(props) {
     const item = $(props.item)
     return {
@@ -116,16 +126,6 @@ class NodeItem extends ObservableComponent {
     if (this.props.isFocused && !prevProps.isFocused) {
       this.refs.wrapper.focus()
     }
-  }
-
-  shouldComponentUpdate(nextProps, nextState) {
-    return (
-      nextProps.isFocusable !== this.props.isFocusable ||
-      nextProps.isFocused !== this.props.isFocused ||
-      nextProps.isOnPath !== this.props.isOnPath ||
-      nextState.focused !== this.state.focused ||
-      !Rx.Observable.isObservable(nextProps.item) && nextProps.item !== this.props.item
-    )
   }
 
   _handleFocus(event) {
