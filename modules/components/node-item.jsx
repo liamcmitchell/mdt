@@ -3,7 +3,7 @@ import ObservableComponent from 'components/observable'
 import Rx from 'rx'
 
 // Turn object into observable if it isn't already.
-function asObservable(v) {
+function $(v) {
   return Rx.Observable.isObservable(v) ? v : Rx.Observable.just(v)
 }
 
@@ -30,7 +30,7 @@ class NodeItem extends ObservableComponent {
   }
 
   observe(props) {
-    const item = asObservable(props.item)
+    const item = $(props.item)
     return {
       item: item
         .catch(err => Rx.Observable.just(err.toString())),

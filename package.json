@@ -30,6 +30,7 @@
     "keycode": "^2.1.0",
     "open": "0.0.5",
     "react": "^0.14.3",
+    "react-combinators": "^0.3.0",
     "react-dom": "^0.14.3",
     "rx": "^4.0.7",
     "shallow-equals": "0.0.0",

@@ -27,3 +27,6 @@ export default function Data(sources) {
     return route(req)
   }
 }
+
+// TODO: Url first api
+// e.g. data('/path').observable() or data('/path').set()
