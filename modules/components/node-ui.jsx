@@ -1,21 +1,21 @@
 import React, { Component } from 'react'
 import keycode from 'keycode'
 import { Combinator } from 'react-combinators/rx'
-import ObservableComponent from 'components/observable'
 import NodeItem from 'components/node-item'
-import createHistory from 'history/lib/createBrowserHistory'
 import Rx from 'rx'
 import _ from 'underscore'
 import data from 'client-data'
-
-// Turn path into array of paths including root (empty) and original.
-function pathToSubPaths(path) {
-  return [[]].concat(path.map((v, i) => path.slice(0, i + 1)))
-}
+import wrapFn from 'lib/wrapFn'
+import getLoopingArrayItem from 'lib/getLoopingArrayItem'
 
 // Turn object into observable if it isn't already.
 function $(v) {
   return Rx.Observable.isObservable(v) ? v : Rx.Observable.just(v)
+}
+
+// Turn path into array of paths including root (empty) and original.
+function pathToSubPaths(path) {
+  return [[]].concat(path.map((v, i) => path.slice(0, i + 1)))
 }
 
 function isNode(node) {
@@ -69,22 +69,28 @@ function nodeChild$(node$, key) {
     })
 }
 
-// Access items in an array as if it looped infinitely.
-function getLoopingArrayItem(array, index) {
-  if (!array) throw new Error('Array required')
-  if (array.length === 0) return undefined
-  // Loop to start.
-  while (index >= array.length) {
-    index -= array.length
-  }
-  // Loop to end.
-  while (index < 0) {
-    index += array.length
-  }
-  return array[index]
+function setPath(path) {
+  data.set('/path', '/' + path.join('/'))
 }
 
-class NodeUI extends ObservableComponent {
+function combineLatest(observables, fn) {
+  if (Rx.Observable.isObservable(observables)) {
+    return observables.map(fn)
+  }
+  else if (_.isArray(observables)) {
+    return Rx.Observable.combineLatest(observables, fn)
+  }
+  else if (_.isObject(observables)) {
+    const keys = _.keys(observables)
+    return Rx.Observable.combineLatest(_.values(observables))
+      .map(values => fn(_.object(keys, values)))
+  }
+  else {
+    throw new Error('Require observable, array or object of observables')
+  }
+}
+
+class NodeUI extends Component {
   static propTypes = {
     // Passed on to item, content & child nodes unless overridden.
     styles: React.PropTypes.object,
@@ -92,14 +98,9 @@ class NodeUI extends ObservableComponent {
     root: React.PropTypes.object.isRequired
   }
 
-  constructor(props, context) {
-    super(props, context)
-
-    // Used to record last child visited for each node.
-    this.lastChild = {}
-  }
-
   render() {
+    // Used to record last child visited for each node.
+    this.lastChild = this.lastChild || {}
     const props = this.props
     const path$ = data.observable('/path').map(path => _.filter(path.split('/')))
     const nodeAt$ = nodeAtPath$.bind(null, $(props.root))
@@ -196,7 +197,7 @@ class NodeUI extends ObservableComponent {
         handler.fn(event)
         event.preventDefault()
       }
-    })
+    }).scan(wrapFn).distinctUntilChanged()
 
     const allHandlers$ = Rx.Observable.combineLatest(
       [focusedNodeHandlers$, leftHandler$, upDownHandlers$, rightHandler$]
@@ -210,7 +211,7 @@ class NodeUI extends ObservableComponent {
           event.preventDefault()
         }
       }
-    })
+    }).scan(wrapFn).distinctUntilChanged()
 
     return <Combinator>
       <div
@@ -254,134 +255,110 @@ class NodeUI extends ObservableComponent {
             backgroundColor: props.styles.backgroundHighlightColor
           }}
         >
-          {focusedNodeHandlers$.map(handlers =>
-            handlers.map(h => renderHandler(props, h))
-          )}
+          {focusedNodeHandlers$.map(handlers => handlers.map(handler =>
+            <div
+              key={handler.key}
+              style={{
+                padding: props.styles.padding,
+                color: props.styles.primaryColor
+              }}
+            >
+              <span
+                style={{
+                  backgroundColor: props.styles.backgroundColor,
+                  padding: 6,
+                  marginRight: 10,
+                  borderRadius: 4
+                }}
+              >
+                {handler.key}
+              </span>
+              {handler.label || 'action'}
+            </div>
+          ))}
         </div>
       </div>
     </Combinator>
   }
 }
 
-function setPath(path) {
-  data.set('/path', '/' + path.join('/'))
-}
-
-function renderHandler(props, handler) {
-  return <div
-    key={handler.key}
-    style={{
-      padding: props.styles.padding,
-      color: props.styles.primaryColor
-    }}
-  >
-    <span
-      style={{
-        backgroundColor: props.styles.backgroundColor,
-        padding: 6,
-        marginRight: 10,
-        borderRadius: 4
-      }}
-    >
-      {handler.key}
-    </span>
-    {handler.label || 'action'}
-  </div>
-}
-
-class NodeChildren extends ObservableComponent {
+class NodeChildren extends Component {
 
   shouldComponentUpdate(nextProps, nextState) {
-    return (
-      nextProps.selected !== this.props.selected ||
-      nextProps.selectedIsFocused !== this.props.selectedIsFocused ||
-      nextProps.root !== this.props.root ||
-      nextProps.styles !== this.props.styles ||
-      !_.isEqual(nextProps.path, this.props.path)
-    )
-  }
-
-  observe(props) {
-    const { root, path, selected } = props
-    return {
-      nodes: nodeAtPath$($(root), path)
-        // Get children.
-        .flatMapLatest(nodeChildren$)
-        // Show dummy node if there was an error getting the nodes.
-        // TODO: This dummy node isn't available to parent so the up/down kb handler
-        // doesn't know which node to pass focus to.
-        .catch(err => {
-          console.error(err)
-          return $([{
-            key: '',
-            item: Rx.Observable.throw(
-              new Error("Can't find children for " + path.join('/'))
-            )
-          }])
-        })
-        .map(nodes => {
-          // If the next node isn't there, add a placeholder for error.
-          if (selected && !nodes.find(nodeWithKey(selected))) {
-            const dummy = {
-              key: selected,
-              item: Rx.Observable.throw(new Error(selected + ' not found'))
-            }
-            nodes = [dummy].concat(nodes)
-          }
-          return nodes
-        })
-    }
+    return !_.isEqual(nextProps, this.props) || !_.isEqual(nextState, this.state)
   }
 
   render() {
-    const nodes = this.data.nodes || []
-    const isOptions = !this.props.selected
-    const isFocused = this.props.selectedIsFocused
-    const isCompact = this.props.selected && !isFocused
-    return <div
-      style={{
-        backgroundColor: this.props.styles.backgroundColor,
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100%',
-        maxHeight: '100%',
-        overflow: isCompact ? 'hidden' : 'auto',
-        transition: 'all 0.2s',
-        width: isCompact ?
-          10 :
-          isFocused ? 200 : 'auto',
-        flexGrow: isOptions ? 1 : 0,
-        flexShrink: isOptions ? 1 : 0,
-        boxShadow: '-2px 0 2px 0 rgba(0, 0, 0, 0.2)',
-        cursor: isCompact ? 'pointer' : null
-      }}
-      onClick={isCompact ? this._handleClick.bind(this) : null}
-    >
-      {nodes.map(node => this._renderNode(node))}
-    </div>
-  }
-
-  _renderNode(node) {
     const props = this.props
-    const path = [].concat(props.path, node.key)
-    const isOnPath = props.selected === node.key
-    const isFocused = isOnPath && props.selectedIsFocused
-    return <NodeItem
-      key={node.key}
-      path={path}
-      isFocusable={isFocusable(node)}
-      isOnPath={isOnPath}
-      isFocused={isFocused}
-      styles={node.styles || props.styles}
-      item={node.item}
-      onMouseDown={props.onMouseDown}
-      onDoubleClick={props.onDoubleClick}
-      onKeyDown={props.onKeyDown}
-    />
-  }
 
-  _handleClick(event) {
-    this.props.onMouseDown(this.props.path, event)
+    const isOptions = !props.selected
+    const isFocused = props.selectedIsFocused
+    const isCompact = props.selected && !isFocused
+
+    const nodes$ = nodeAtPath$($(props.root), props.path)
+      // Get children.
+      .flatMapLatest(nodeChildren$)
+      // Show dummy node if there was an error getting the nodes.
+      .catch(err => {
+        console.error(err)
+        return $([{
+          key: '',
+          item: Rx.Observable.throw(
+            new Error("Can't find children for " + props.path.join('/'))
+          )
+        }])
+      })
+      .map(nodes => {
+        // If the next node isn't there, add a placeholder for error.
+        if (props.selected && !nodes.find(nodeWithKey(props.selected))) {
+          const dummy = {
+            key: props.selected,
+            item: Rx.Observable.throw(new Error(props.selected + ' not found'))
+          }
+          nodes = [dummy].concat(nodes)
+        }
+        return nodes
+      })
+
+    return <Combinator>
+      <div
+        style={{
+          backgroundColor: props.styles.backgroundColor,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100%',
+          maxHeight: '100%',
+          overflow: isCompact ? 'hidden' : 'auto',
+          transition: 'all 0.2s',
+          width: isCompact ?
+            10 :
+            isFocused ? 200 : 'auto',
+          flexGrow: isOptions ? 1 : 0,
+          flexShrink: isOptions ? 1 : 0,
+          boxShadow: '-2px 0 2px 0 rgba(0, 0, 0, 0.2)',
+          cursor: isCompact ? 'pointer' : null
+        }}
+        onClick={isCompact ? setPath.bind(null, props.path) : null}
+      >
+        {nodes$.map(nodes => nodes.map(node => {
+          const nodePath = props.path.concat(node.key)
+          const isOnPath = props.selected === node.key
+          const isFocused = isOnPath && props.selectedIsFocused
+          return <NodeItem
+            key={node.key}
+            path={nodePath}
+            isFocusable={isFocusable(node)}
+            isOnPath={isOnPath}
+            isFocused={isFocused}
+            styles={node.styles || props.styles}
+            item={node.item}
+            onMouseDown={props.onMouseDown}
+            onDoubleClick={props.onDoubleClick}
+            onKeyDown={props.onKeyDown}
+          />
+        }))}
+      </div>
+    </Combinator>
   }
 }
 

@@ -1,13 +1,14 @@
-import React, { PropTypes } from 'react'
-import ObservableComponent from 'components/observable'
+import React, { Component, PropTypes } from 'react'
+import { Combinator } from 'react-combinators/rx'
 import Rx from 'rx'
+import _ from 'underscore'
 
 // Turn object into observable if it isn't already.
 function $(v) {
   return Rx.Observable.isObservable(v) ? v : Rx.Observable.just(v)
 }
 
-class NodeItem extends ObservableComponent {
+class NodeItem extends Component {
   static propTypes = {
     path: PropTypes.array.isRequired,
     isFocusable: PropTypes.bool.isRequired,
@@ -30,25 +31,7 @@ class NodeItem extends ObservableComponent {
   }
 
   shouldComponentUpdate(nextProps, nextState) {
-    return (
-      nextProps.isFocusable !== this.props.isFocusable ||
-      nextProps.isFocused !== this.props.isFocused ||
-      nextProps.isOnPath !== this.props.isOnPath ||
-      nextState.focused !== this.state.focused ||
-      !Rx.Observable.isObservable(nextProps.item) && nextProps.item !== this.props.item
-    )
-  }
-
-  observe(props) {
-    const item = $(props.item)
-    return {
-      item: item
-        .catch(err => Rx.Observable.just(err.toString())),
-      itemErr: item
-        .startWith(false)
-        .map(() => false)
-        .catch(Rx.Observable.just(true))
-    }
+    return !_.isEqual(nextProps, this.props) || !_.isEqual(nextState, this.state)
   }
 
   render() {
@@ -69,36 +52,41 @@ class NodeItem extends ObservableComponent {
         null
     }, props.style)
 
-    // Provide basic styling if item is text.
-    const item = this.data.item || ''
-    const content = typeof item === "string" ?
-      <div
-        style={{
-          color: this.data.itemErr ?
-            styles.red :
-            props.isFocusable ?
-              styles.primaryColor :
-              styles.secondaryColor,
-          padding: styles.padding,
-          whiteSpace: 'pre'
-        }}
-      >
-        {item}
-      </div> :
-      item
+    const item$ = $(props.item)
+      .map(item => ({err: null, val: item}))
+      .catch(err => $({err: err, val: null}))
 
-    return <div
-      ref="wrapper"
-      style={style}
-      tabIndex="-1"
-      onFocus={this._handleFocus.bind(this)}
-      onBlur={this._handleBlur.bind(this)}
-      onMouseDown={props.isFocusable ? props.onMouseDown.bind(null, props.path) : null}
-      onDoubleClick={props.isFocusable ? props.onDoubleClick.bind(null, props.path) : null}
-      onKeyDown={props.isFocusable ? props.onKeyDown.bind(null, props.path) : null}
-    >
-      {content}
-    </div>
+    return <Combinator>
+      <div
+        ref="wrapper"
+        style={style}
+        tabIndex="-1"
+        onFocus={this._handleFocus.bind(this)}
+        onBlur={this._handleBlur.bind(this)}
+        onMouseDown={props.isFocusable ? props.onMouseDown.bind(null, props.path) : null}
+        onDoubleClick={props.isFocusable ? props.onDoubleClick.bind(null, props.path) : null}
+        onKeyDown={props.isFocusable ? props.onKeyDown.bind(null, props.path) : null}
+      >
+        {item$.map(item => {
+          const content = item.err ? item.err.toString() : item.val
+          return typeof content === "string" ?
+            <div
+              style={{
+                color: item.err ?
+                  styles.red :
+                  props.isFocusable ?
+                    styles.primaryColor :
+                    styles.secondaryColor,
+                padding: styles.padding,
+                whiteSpace: 'pre'
+              }}
+            >
+              {content}
+            </div> :
+            content
+        })}
+      </div>
+    </Combinator>
   }
 
   componentDidMount() {
