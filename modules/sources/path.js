@@ -1,5 +1,4 @@
 import createHistory from 'history/lib/createBrowserHistory'
-import Rx from 'rx'
 import createSource from 'data/createSource'
 
 const history = createHistory()

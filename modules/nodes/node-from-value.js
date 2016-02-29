@@ -1,5 +1,6 @@
 import _ from 'underscore'
 import Rx from 'rx'
+import data from 'client-data'
 
 export default function nodeFromValue(val, onChange) {
   if (typeof val === 'function') {
@@ -64,12 +65,16 @@ function booleanNodes(val, onChange) {
 function numberNodes(val, onChange) {
   return [{
     key: 'val',
-    item: val.toString(),
+    item: val,
+    schema: {
+      type: 'number'
+    },
+    onChange: onChange,
     handlers: [{
-      key: 'enter',
-      label: 'edit',
+      key: 'a',
+      label: 'set 0',
       fn: () => {
-        console.log('edit!')
+        onChange(0)
       }
     }]
   }]

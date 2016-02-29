@@ -1,12 +1,8 @@
 import React, { Component, PropTypes } from 'react'
 import { Combinator } from 'react-combinators/rx'
-import Rx from 'rx'
+import $ from 'lib/rx'
 import _ from 'underscore'
-
-// Turn object into observable if it isn't already.
-function $(v) {
-  return Rx.Observable.isObservable(v) ? v : Rx.Observable.just(v)
-}
+import data from 'client-data'
 
 class NodeItem extends Component {
   static propTypes = {
@@ -18,7 +14,7 @@ class NodeItem extends Component {
     onMouseDown: PropTypes.func.isRequired,
     onDoubleClick: PropTypes.func.isRequired,
     onKeyDown: PropTypes.func.isRequired,
-    item: PropTypes.any.isRequired
+    node: PropTypes.object.isRequired
   }
 
   constructor(props, context) {
@@ -45,54 +41,92 @@ class NodeItem extends Component {
       // To show that we don't have control we fade the entire node.
       opacity: props.isFocused && !this.state.focused ? 0.7 : 1,
       // All node items respond to clicks.
-      cursor: props.isFocusable ? "pointer" : null,
+      cursor: props.isFocusable ? 'pointer' : null,
       // Give default styling
       backgroundColor: props.isOnPath ?
         styles.backgroundHighlightColor :
-        null
+        null,
+      overflow: 'hidden'
     }, props.style)
 
-    const item$ = $(props.item)
+    const item$ = $(props.node.item)
       .map(item => ({err: null, val: item}))
       .catch(err => $({err: err, val: null}))
 
+    const viewContent$ = item$.map(item => {
+      const content = item.err ?
+        item.err.toString() :
+        item.val === null ?
+          'null' :
+          typeof item.val === 'number' || typeof item.val === 'boolean' ?
+            item.val.toString() :
+            item.val
+      return typeof content === 'string' ?
+        <div
+          style={{
+            color: item.err ?
+              styles.red :
+              props.isFocusable ?
+                styles.primaryColor :
+                styles.secondaryColor,
+            padding: styles.padding,
+            whiteSpace: 'pre'
+          }}
+        >
+          {content}
+        </div> :
+        content
+    })
+
     return <Combinator>
       <div
-        ref="wrapper"
+        ref={this._handleWrapperMount.bind(this)}
         style={style}
         tabIndex="-1"
         onFocus={this._handleFocus.bind(this)}
         onBlur={this._handleBlur.bind(this)}
         onMouseDown={props.isFocusable ? props.onMouseDown.bind(null, props.path) : null}
-        onDoubleClick={props.isFocusable ? props.onDoubleClick.bind(null, props.path) : null}
-        onKeyDown={props.isFocusable ? props.onKeyDown.bind(null, props.path) : null}
+        onDoubleClick={props.isFocusable ? props.onDoubleClick : null}
+        onKeyDown={props.isFocusable ? props.onKeyDown : null}
       >
-        {item$.map(item => {
-          const content = item.err ? item.err.toString() : item.val
-          return typeof content === "string" ?
-            <div
-              style={{
-                color: item.err ?
-                  styles.red :
-                  props.isFocusable ?
-                    styles.primaryColor :
-                    styles.secondaryColor,
-                padding: styles.padding,
-                whiteSpace: 'pre'
-              }}
-            >
-              {content}
-            </div> :
-            content
-        })}
+        {props.isFocused ?
+          $.combineLatest([
+            data('/editing'),
+            item$,
+            viewContent$
+          ], (editing, item, viewContent) => {
+            return editing ?
+              <input
+                type='number'
+                defaultValue={item.val}
+                onKeyDown={(e) => {
+                  if (e.keyCode === 13) {
+                    props.node.onChange(+e.target.value)
+                  }
+                }}
+                ref={c => c && c.select()}
+                style={{
+                  padding: styles.padding
+                }}
+              /> :
+              viewContent
+          }) :
+          viewContent$
+        }
       </div>
     </Combinator>
   }
 
-  componentDidMount() {
-    // Focus the node if we have the cursor on mount.
-    if (this.props.isFocused) {
-      this.refs.wrapper.focus()
+  _handleWrapperMount(c) {
+    if (c) {
+      this.wrapper = c
+      // Focus the node if we have the cursor on mount.
+      if (this.props.isFocused) {
+        this.wrapper.focus()
+      }
+    }
+    else {
+      delete this.wrapper
     }
   }
 
@@ -112,7 +146,7 @@ class NodeItem extends Component {
   componentDidUpdate(prevProps, prevState) {
     // Focus the actual DOM node.
     if (this.props.isFocused && !prevProps.isFocused) {
-      this.refs.wrapper.focus()
+      this.wrapper.focus()
     }
   }
 
@@ -130,15 +164,16 @@ class NodeItem extends Component {
       setTimeout(() => {
         // Try to recover focus if we lost it to body.
         if (document.activeElement === document.body) {
-          this.refs.wrapper.focus()
+          this.wrapper.focus()
           // And if we still don't have it, update state.
-          if (document.activeElement !== this.refs.wrapper) {
+          if (document.activeElement !== this.wrapper) {
             this.setState({focused: false})
           }
         }
         // Another element has focus, so update state.
         else {
-          this.setState({focused: false})
+          // TODO: This causes a render loop when focusing child input.
+          // this.setState({focused: false})
         }
       })
     }

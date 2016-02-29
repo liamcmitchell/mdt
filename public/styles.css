@@ -35,5 +35,5 @@ input::selection {
   background: white;
 }
 div:focus {
-  outline: none;
+  // outline: none;
 }

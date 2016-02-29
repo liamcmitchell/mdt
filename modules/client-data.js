@@ -1,21 +1,20 @@
-import Data from 'data'
+import createDataSource from 'data'
+import alias from 'data/alias'
+import createSource from 'data/createSource'
+import createMemorySource from 'data/createMemorySource'
 import remoteSource from 'sources/remote'
 import pathSource from 'sources/path'
-
-function alias(route, source) {
-  return function(request) {
-    return source(Object.assign({}, request, {url: route + request.url}))
-  }
-}
+import Rx from 'rx'
 
 const serverSource = remoteSource(document.location.origin)
 
-const data = new Data({
+const data = createDataSource({
   '/server': serverSource,
   // Alias to server
   '/file': alias('/file', serverSource),
   '/dir': alias('/dir', serverSource),
-  '/path': pathSource
+  '/path': pathSource,
+  '/editing': createMemorySource(false)
 })
 
 export default data
