@@ -1,14 +1,14 @@
 {
   "null": null,
   "boolean": false,
-  "string": "my name is ...",
+  "number": 125,
+  "string": "YOLO",
   "array": [
-    2,
+    7,
     3,
-    "7"
+    2
   ],
   "object": {
-    "key": "working!!!!!!!!"
-  },
-  "number": "674"
+    "key": "value"
+  }
 }

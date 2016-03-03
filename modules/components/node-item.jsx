@@ -5,6 +5,7 @@ import $ from 'lib/rx'
 import _ from 'underscore'
 import data from 'client-data'
 import * as nodeHelpers from 'lib/node-helpers'
+import validate from 'lib/validate'
 
 class NodeEdit extends Component {
   constructor(props, context) {
@@ -40,25 +41,29 @@ class NodeEdit extends Component {
   }
 
   _isValid() {
-    const value = this.state.value
-    const schema = this.props.node.schema || {}
-    return schema.validator ?
-      // Validator should return null if there are no errors.
-      !schema.validator(value) :
-      true
+    const result = validate(this._value(), this.props.node.schema || {})
+    if (result.errors.length) {
+      // TODO: Show user these. If I want to show them in the status bar...
+      // all this logic needs to be pulled out of this component.
+      console.log('validation errors', result.errors)
+    }
+    return result.valid
   }
 
   _handleChange(event) {
-    const schema = this.props.schema || {}
-    const value = schema.type === 'number' ?
-      +event.target.value :
-      event.target.value
-    this.setState({value})
+    this.setState({value: event.target.value})
+  }
+
+  _value() {
+    const schema = this.props.node.schema || {}
+    return schema.type === 'number' ?
+      parseFloat(this.state.value) :
+      this.state.value
   }
 
   _handleKeyDown(event) {
-    if (event.keyCode === 13) {
-      this.props.node.onChange(this.state.value)
+    if (event.keyCode === 13 && this._isValid()) {
+      this.props.node.onChange(this._value())
     }
   }
 }

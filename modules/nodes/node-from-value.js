@@ -7,7 +7,7 @@ export default function nodeFromValue(val, path, onChange) {
     throw new Error("Functions can't be represented as nodes")
   }
   return {
-    nodes:
+    nodes: [typeNode(val, path, onChange)].concat(
       _.isArray(val) ? arrayNodes(val, path, onChange) :
       _.isObject(val) ? objectNodes(val, path, onChange) :
       _.isNull(val) ? nullNodes(val, path, onChange) :
@@ -15,11 +15,71 @@ export default function nodeFromValue(val, path, onChange) {
       _.isNumber(val) ? numberNodes(val, path, onChange) :
       _.isString(val) ? stringNodes(val, path, onChange) :
       []
+    )
   }
 }
 
-function objectNodes(val, path, onChange) {
-  const newPropertyHandler = {
+function getType(val) {
+  return (
+    _.isArray(val) ? 'array' :
+    _.isObject(val) ? 'object' :
+    _.isNull(val) ? 'null' :
+    _.isBoolean(val) ? 'boolean' :
+    _.isNumber(val) ? 'number' :
+    _.isString(val) ? 'string' :
+    'unknown'
+  )
+}
+
+// Prepend underscore until it doesn't conflict.
+function uniqueString(string, conflicting) {
+  while (conflicting.indexOf(string) >= 0) {
+    string = '_' + string
+  }
+  return string
+}
+
+function typeOptionNode(name, cb) {
+  return {
+    key: name,
+    item: name,
+    handlers: [
+      {
+        key: 'enter',
+        label: 'select',
+        fn: cb
+      }
+    ]
+  }
+}
+
+function typeNode(val, path, onChange) {
+  return {
+    // Object property can be 'type'. Better solution is to namespace all keys
+    // but I want to avoid this if possible.
+    key: _.isObject(val) && !_.isArray(val) ?
+      uniqueString('type', _.keys(val)) :
+      'type',
+    item: '<' + getType(val) + '>',
+    // Probably nicer to have a dropdown or other in place selection.
+    // For now, use child nodes.
+    nodes: [
+      typeOptionNode('null', () => onChange(null)),
+      typeOptionNode('boolean', () => onChange(false)),
+      typeOptionNode('number', () => onChange(0)),
+      typeOptionNode('string', () => onChange('')),
+      typeOptionNode('array', () => onChange([])),
+      typeOptionNode('object', () => onChange({}))
+    ],
+    handlers: _.filter([
+      getType(val) === 'object' ? newPropertyHandler(val, path, onChange) : null,
+      getType(val) === 'array' ? newItemHandler(val, path, onChange) : null
+    ])
+  }
+}
+
+function newPropertyHandler(val, path, onChange) {
+  return {
     key: 'n',
     label: 'new property',
     fn: () => {
@@ -35,6 +95,10 @@ function objectNodes(val, path, onChange) {
         })
     }
   }
+}
+
+function objectNodes(val, path, onChange) {
+  const newProperty = newPropertyHandler(val, path, onChange)
 
   return _.map(val, (v, k) => {
     return Object.assign(
@@ -49,10 +113,10 @@ function objectNodes(val, path, onChange) {
           type: 'string',
           validator: testK => {
             if (testK !== k && val.hasOwnProperty(testK)) {
-              return new Error('Duplicate key exists')
+              return 'Duplicate key exists'
             }
             if (testK === '') {
-              return new Error('No empty string properties you masochist')
+              return 'No empty string properties you masochist'
             }
           }
         },
@@ -65,7 +129,7 @@ function objectNodes(val, path, onChange) {
           .then(() => data('/path').set('/' + path.concat(newK).join('/')))
         },
         handlers: [
-          newPropertyHandler,
+          newProperty,
           {
             key: 'backspace',
             label: 'delete property',
@@ -83,7 +147,22 @@ function objectNodes(val, path, onChange) {
   })
 }
 
+function newItemHandler(val, path, onChange) {
+  return {
+    key: 'n',
+    label: 'new item',
+    fn: () => {
+      return onChange(val.concat(null))
+        .then(() => {
+          return data('/path').set('/' + path.concat(val.length).join('/'))
+        })
+    }
+  }
+}
+
 function arrayNodes(val, path, onChange) {
+  const newItem = newItemHandler(val, path, onChange)
+
   return _.map(val, (v, k) => Object.assign(
     nodeFromValue(v, path.concat(k), newV =>
       onChange(val.map((oldV, oldK) => oldK === k ? newV : oldV))
@@ -106,7 +185,22 @@ function arrayNodes(val, path, onChange) {
           return onChange(newVal)
             .then(() => data('/path').set('/' + path.concat(newK).join('/')))
         }
-      }
+      },
+      handlers: [
+        newItem,
+        {
+          key: 'backspace',
+          label: 'delete item',
+          fn: () => {
+            const newVal = _.clone(val)
+            newVal.splice(k, 1)
+            return onChange(newVal)
+              .then(() =>
+                data('/path').set('/' + path.concat(newVal.length === k ? k - 1 : k).join('/'))
+              )
+          }
+        }
+      ]
     }
   ))
 }
