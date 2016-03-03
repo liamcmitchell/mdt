@@ -34,6 +34,6 @@ input::selection {
   color: black ;
   background: white;
 }
-div:focus {
-  // outline: none;
+div:focus, a:focus {
+  outline: none;
 }

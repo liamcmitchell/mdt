@@ -1,13 +1,15 @@
 import Rx from 'rx'
 import _ from 'underscore'
 
+// Nicer error messages.
+// Rx.config.longStackSupport = true
+
 // Turn object into observable if it isn't already.
 export default function $(v) {
   return Rx.Observable.isObservable(v) ? v : Rx.Observable.just(v)
 }
 
 $.isObservable = Rx.Observable.isObservable
-$.throw = Rx.Observable.throw
 
 $.combineLatest = function combineLatest(observables, fn) {
   if (Rx.Observable.isObservable(observables)) {

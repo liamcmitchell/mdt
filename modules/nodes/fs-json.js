@@ -9,7 +9,7 @@ function fsNodes(path) {
       nodes: item.isFile ?
         item.name.match(/\.json$/) ?
           data.observable('/file' + path + '/' + item.name).map(value =>
-            nodeFromValue(JSON.parse(value)).nodes
+            nodeFromValue(JSON.parse(value), ['TODO']).nodes
           ) :
           [{
             key: 'content',

@@ -1,10 +1,11 @@
 import React, { Component } from 'react'
 import keycode from 'keycode'
 import { Combinator } from 'react-combinators/rx'
-import NodeItem from 'components/node-item'
+import NodeChildren from 'components/node-children'
 import Rx from 'rx'
 import _ from 'underscore'
 import $ from 'lib/rx'
+import * as nodeHelpers from 'lib/node-helpers'
 import data from 'client-data'
 import wrapFn from 'lib/wrapFn'
 import getLoopingArrayItem from 'lib/getLoopingArrayItem'
@@ -14,66 +15,15 @@ function pathToSubPaths(path) {
   return [[]].concat(path.map((v, i) => path.slice(0, i + 1)))
 }
 
-function isNode(node) {
-  return node && node.hasOwnProperty('key') && node.hasOwnProperty('item')
-}
-
-function isFocusable(node) {
-  return node && node.focusable !== false
-}
-
-function getProp(prop, fallback, object) {
-  return object.hasOwnProperty(prop) ?
-    typeof object[prop] === 'function' ?
-      object[prop]() :
-      object[prop] :
-    fallback
-}
-
-function getProp$(prop, fallback, object$) {
-  return $.isObservable(object$) ?
-    object$.flatMapLatest(object =>
-      $(getProp(prop, fallback, object))
-    ) :
-    $(getProp(prop, fallback, object$))
-}
-
-const nodeItem$ = getProp$.bind(null, 'item', null)
-const nodeChildren$ = getProp$.bind(null, 'nodes', [])
-const nodeHandlers$ = getProp$.bind(null, 'handlers', [])
-
-// Helper for common find arg.
-function nodeWithKey(key) {
-  return function(node) {
-    return isNode(node) && node.key === key
-  }
-}
-
-function nodeAtPath$(node$, path) {
-  return path.reduce(nodeChild$, node$)
-}
-
-function nodeChild$(node$, key) {
-  return node$
-    .flatMapLatest(nodeChildren$)
-    .map(children => {
-      const child = children.find(nodeWithKey(key))
-      if (child)
-        return child
-      else
-        throw new Error('Child with key "' + key + '" not found')
-    })
-}
-
 function setPath(path) {
   data('/path').set('/' + path.join('/'))
 }
 
-class NodeUI extends Component {
+export default class NodeUI extends Component {
   static propTypes = {
     // Passed on to item, content & child nodes unless overridden.
     styles: React.PropTypes.object,
-    // Root node. Only used for children.
+    // Root node.
     root: React.PropTypes.object.isRequired
   }
 
@@ -85,7 +35,7 @@ class NodeUI extends Component {
     const path$ = data('/path').observable()
       .map(path => _.filter(path.split('/')))
 
-    const nodeAt$ = nodeAtPath$.bind(null, $(props.root))
+    const nodeAt$ = nodeHelpers.nodeAtPath$.bind(null, $(props.root))
     const focusedNode$ = path$.flatMapLatest(nodeAt$)
 
     const navHandlers$ = $.combineLatest([
@@ -113,15 +63,13 @@ class NodeUI extends Component {
         siblings: path$
           .map(path => path.slice(0, -1))
           .flatMapLatest(nodeAt$)
-          .flatMapLatest(nodeChildren$)
-          // Path may not point to valid node.
-          .catch($([]))
+          .flatMapLatest(nodeHelpers.nodeChildren$)
       }, ({path, siblings}) => {
         // Handler is used by both up & down.
         const fn = (event) => {
           const key = keycode(event)
           const currentKey = path[path.length - 1]
-          const keys = siblings.filter(isFocusable).map(n => n.key)
+          const keys = siblings.filter(nodeHelpers.isFocusable).map(n => n.key)
           // Siblings may be empty if there is a bad url (we still show error).
           if (keys.length) {
             setPath(path.slice(0, -1).concat(
@@ -144,19 +92,17 @@ class NodeUI extends Component {
       $.combineLatest({
         path: path$,
         children: focusedNode$
-          .flatMapLatest(nodeChildren$)
-          // Path may not point to valid node.
-          .catch($([]))
+          .flatMapLatest(nodeHelpers.nodeChildren$)
       }, ({path, children}) => {
         // First save the current path.
         path.forEach((key, i) => {
           this.lastChildStore[path.slice(0, i).join('/')] = key
         })
 
-        const focusable = children.filter(isFocusable)
+        const focusable = children.filter(nodeHelpers.isFocusable)
         if (focusable.length === 0) return null
         const lastChildKey = this.lastChildStore[path.join('/')]
-        const lastChild = focusable.find(nodeWithKey(lastChildKey))
+        const lastChild = focusable.find(nodeHelpers.nodeWithKey(lastChildKey))
         // Prefer last child if it exists, otherwise use the first.
         const childKey = lastChild ? lastChild.key : focusable[0].key
 
@@ -169,9 +115,7 @@ class NodeUI extends Component {
 
       // Node
       focusedNode$
-        .flatMapLatest(nodeHandlers$)
-        // Path may not point to valid node.
-        .catch($([]))
+        .flatMapLatest(nodeHelpers.nodeHandlers$)
 
     ])
 
@@ -228,6 +172,7 @@ class NodeUI extends Component {
           flex: 1,
           backgroundColor: props.styles.backgroundColor
         }}
+        onKeyDown={handleKeyDown$}
       >
         <div
           style={{
@@ -236,18 +181,15 @@ class NodeUI extends Component {
             flex: 1
           }}
         >
-          {$.combineLatest([path$, handleKeyDown$], (path, handleKeyDown) =>
+          {path$.map(path =>
             pathToSubPaths(path).map((subPath, i) =>
               <NodeChildren
                 key={subPath.join('/')}
                 path={subPath}
-                selected={path[i]}
-                selectedIsFocused={path.length === i + 1}
                 root={props.root}
                 styles={props.styles}
-                onMouseDown={setPath}
-                onDoubleClick={handleKeyDown}
-                onKeyDown={handleKeyDown}
+                selected={path[i]}
+                selectedIsFocused={path.length === i + 1}
               />
             )
           )}
@@ -291,85 +233,3 @@ class NodeUI extends Component {
     </Combinator>
   }
 }
-
-class NodeChildren extends Component {
-
-  shouldComponentUpdate(nextProps, nextState) {
-    return !_.isEqual(nextProps, this.props) || !_.isEqual(nextState, this.state)
-  }
-
-  render() {
-    const props = this.props
-
-    const isOptions = !props.selected
-    const isFocused = props.selectedIsFocused
-    const isCompact = props.selected && !isFocused
-
-    const nodes$ = nodeAtPath$($(props.root), props.path)
-      // Get children.
-      .flatMapLatest(nodeChildren$)
-      // Show dummy node if there was an error getting the nodes.
-      .catch(err => {
-        console.error(err)
-        return $([{
-          key: '',
-          item: $.throw(
-            new Error("Can't find children for " + props.path.join('/'))
-          )
-        }])
-      })
-      .map(nodes => {
-        // If the next node isn't there, add a placeholder for error.
-        if (props.selected && !nodes.find(nodeWithKey(props.selected))) {
-          const dummy = {
-            key: props.selected,
-            item: $.throw(new Error(props.selected + ' not found'))
-          }
-          nodes = [dummy].concat(nodes)
-        }
-        return nodes
-      })
-
-    return <Combinator>
-      <div
-        style={{
-          backgroundColor: props.styles.backgroundColor,
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: '100%',
-          maxHeight: '100%',
-          overflow: isCompact ? 'hidden' : 'auto',
-          transition: 'all 0.2s',
-          width: isCompact ?
-            10 :
-            isFocused ? 200 : 'auto',
-          flexGrow: isOptions ? 1 : 0,
-          flexShrink: isOptions ? 1 : 0,
-          boxShadow: '-2px 0 2px 0 rgba(0, 0, 0, 0.2)',
-          cursor: isCompact ? 'pointer' : null
-        }}
-        onClick={isCompact ? setPath.bind(null, props.path) : null}
-      >
-        {nodes$.map(nodes => nodes.map(node => {
-          const nodePath = props.path.concat(node.key)
-          const isOnPath = props.selected === node.key
-          const isFocused = isOnPath && props.selectedIsFocused
-          return <NodeItem
-            key={node.key}
-            path={nodePath}
-            isFocusable={isFocusable(node)}
-            isOnPath={isOnPath}
-            isFocused={isFocused}
-            styles={node.styles || props.styles}
-            node={node}
-            onMouseDown={props.onMouseDown}
-            onDoubleClick={props.onDoubleClick}
-            onKeyDown={props.onKeyDown}
-          />
-        }))}
-      </div>
-    </Combinator>
-  }
-}
-
-export default NodeUI
