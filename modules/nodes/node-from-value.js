@@ -53,6 +53,17 @@ function typeOptionNode(name, cb) {
   }
 }
 
+function types() {
+  return {
+    null: null,
+    boolean: false,
+    number: 0,
+    string: '',
+    array: [],
+    object: {}
+  }
+}
+
 function typeNode(val, path, onChange) {
   return {
     // Object property can be 'type'. Better solution is to namespace all keys
@@ -60,21 +71,27 @@ function typeNode(val, path, onChange) {
     key: _.isObject(val) && !_.isArray(val) ?
       uniqueString('type', _.keys(val)) :
       'type',
+    value: getType(val),
     item: '<' + getType(val) + '>',
+    schema: {
+      enum: _.keys(types())
+    },
+    onChange: newType => onChange(types()[newType]),
     // Probably nicer to have a dropdown or other in place selection.
     // For now, use child nodes.
-    nodes: [
-      typeOptionNode('null', () => onChange(null)),
-      typeOptionNode('boolean', () => onChange(false)),
-      typeOptionNode('number', () => onChange(0)),
-      typeOptionNode('string', () => onChange('')),
-      typeOptionNode('array', () => onChange([])),
-      typeOptionNode('object', () => onChange({}))
-    ],
-    handlers: _.filter([
-      getType(val) === 'object' ? newPropertyHandler(val, path, onChange) : null,
-      getType(val) === 'array' ? newItemHandler(val, path, onChange) : null
-    ])
+    // nodes: [
+    //   typeOptionNode('null', () => onChange(null)),
+    //   typeOptionNode('boolean', () => onChange(false)),
+    //   typeOptionNode('number', () => onChange(0)),
+    //   typeOptionNode('string', () => onChange('')),
+    //   typeOptionNode('array', () => onChange([])),
+    //   typeOptionNode('object', () => onChange({}))
+    // ],
+    handlers: [
+      getType(val) === 'object' ? newPropertyHandler(val, path, onChange) :
+      getType(val) === 'array' ? newItemHandler(val, path, onChange) :
+        null
+    ]
   }
 }
 

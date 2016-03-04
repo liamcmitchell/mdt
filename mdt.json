@@ -1,7 +1,6 @@
 {
-  "null": null,
   "boolean": false,
-  "number": 125,
+  "number": 127,
   "string": "YOLO",
   "array": [
     7,
@@ -9,6 +8,6 @@
     2
   ],
   "object": {
-    "key": "value"
+    "new": true
   }
 }

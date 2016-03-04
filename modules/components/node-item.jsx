@@ -12,7 +12,7 @@ class NodeEdit extends Component {
     super(props, context)
 
     this.state = {
-      value: props.item
+      value: props.node.value || props.value
     }
   }
 
@@ -20,49 +20,86 @@ class NodeEdit extends Component {
     const props = this.props
     const schema = props.node.schema || {}
 
-    return <input
-      type={schema.type === 'number' ? 'number' : 'string'}
-      value={this.state.value}
-      onChange={this._handleChange.bind(this)}
-      onKeyDown={this._handleKeyDown.bind(this)}
-      ref={(c) => this.input = c}
-      style={{
-        padding: props.styles.padding,
-        color: this._isValid() ?
-          props.styles.primaryColor :
-          props.styles.red,
-        backgroundColor: props.styles.backgroundHighlightColor
-      }}
-    />
+    return this._isSelect() ?
+      <div
+        style={{
+          padding: props.styles.padding,
+          backgroundColor: props.styles.backgroundHighlightColor
+        }}
+      >
+        <select
+          style={{
+            width: "100%"
+          }}
+          value={this.state.value}
+          onChange={this._handleChange.bind(this)}
+          onKeyDown={this._handleKeyDown.bind(this)}
+          ref={(c) => this.input = c}
+        >
+          {schema.enum.map((val, k) =>
+            <option key={k} value={val}>{val}</option>
+          )}
+        </select>
+      </div> :
+      <input
+        type={schema.type === 'number' ? 'number' : 'string'}
+        value={this.state.value}
+        onChange={this._handleChange.bind(this)}
+        onKeyDown={this._handleKeyDown.bind(this)}
+        ref={(c) => this.input = c}
+        style={{
+          padding: props.styles.padding,
+          color: this._isValid() ?
+            props.styles.primaryColor :
+            props.styles.red,
+          backgroundColor: props.styles.backgroundHighlightColor
+        }}
+      />
   }
 
   componentDidMount(c) {
-    this.input.select()
+    if (this._isSelect()) {
+      this.input.focus()
+    }
+    else {
+      this.input.select()
+    }
   }
 
   _isValid() {
-    const result = validate(this._value(), this.props.node.schema || {})
+    const result = validate(this._value(), this._schema())
     if (result.errors.length) {
       // TODO: Show user these. If I want to show them in the status bar...
       // all this logic needs to be pulled out of this component.
-      console.log('validation errors', result.errors)
+      // console.log('validation errors', result.errors)
     }
     return result.valid
   }
 
+  _isSelect() {
+    return !!this._schema().enum
+  }
+
   _handleChange(event) {
     this.setState({value: event.target.value})
+    if (this._isSelect()) {
+      this.props.node.onChange(event.target.value)
+      data('/editing').set(false)
+    }
   }
 
   _value() {
-    const schema = this.props.node.schema || {}
-    return schema.type === 'number' ?
+    return this._schema().type === 'number' ?
       parseFloat(this.state.value) :
       this.state.value
   }
 
+  _schema() {
+    return this.props.node.schema || {}
+  }
+
   _handleKeyDown(event) {
-    if (event.keyCode === 13 && this._isValid()) {
+    if (event.keyCode === 13 && !this._isSelect() && this._isValid()) {
       this.props.node.onChange(this._value())
     }
   }
@@ -157,7 +194,7 @@ export default class NodeItem extends Component {
               styles={props.styles}
               path={props.path}
               node={props.node}
-              item={item}
+              value={item}
             />
           }
 
