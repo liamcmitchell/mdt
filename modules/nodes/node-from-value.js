@@ -39,20 +39,6 @@ function uniqueString(string, conflicting) {
   return string
 }
 
-function typeOptionNode(name, cb) {
-  return {
-    key: name,
-    item: name,
-    handlers: [
-      {
-        key: 'enter',
-        label: 'select',
-        fn: cb
-      }
-    ]
-  }
-}
-
 function types() {
   return {
     null: null,
@@ -77,16 +63,6 @@ function typeNode(val, path, onChange) {
       enum: _.keys(types())
     },
     onChange: newType => onChange(types()[newType]),
-    // Probably nicer to have a dropdown or other in place selection.
-    // For now, use child nodes.
-    // nodes: [
-    //   typeOptionNode('null', () => onChange(null)),
-    //   typeOptionNode('boolean', () => onChange(false)),
-    //   typeOptionNode('number', () => onChange(0)),
-    //   typeOptionNode('string', () => onChange('')),
-    //   typeOptionNode('array', () => onChange([])),
-    //   typeOptionNode('object', () => onChange({}))
-    // ],
     handlers: [
       getType(val) === 'object' ? newPropertyHandler(val, path, onChange) :
       getType(val) === 'array' ? newItemHandler(val, path, onChange) :

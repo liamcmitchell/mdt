@@ -7,6 +7,8 @@ MDT yo
 - **JSON everywhere.** JSON is the lowest common denominator data format. Embrace it. Everything should read and write pure JSON. An exception being locally executable code.
 
 ## TODO
+- Type node should depend on schema
+
 - Data should accept arrays as urls
 - Combine path and editing into cursor
 - Rename item to value, values come first. Override with view function if necessary
