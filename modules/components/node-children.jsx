@@ -4,7 +4,6 @@ import NodeItem from 'components/node-item'
 import _ from 'underscore'
 import $ from 'lib/rx'
 import * as nodeHelpers from 'lib/node-helpers'
-import data from 'client-data'
 
 export default class NodeChildren extends Component {
 
@@ -14,6 +13,7 @@ export default class NodeChildren extends Component {
 
   render() {
     const props = this.props
+    const data = props.data
 
     const isOptions = !props.selected
     const isFocused = props.selectedIsFocused
@@ -60,6 +60,7 @@ export default class NodeChildren extends Component {
         {nodes$.map(nodes => nodes.map(node => {
           return <NodeItem
             key={node.key}
+            data={data}
             path={props.path.concat(node.key)}
             node={node}
             styles={props.styles}

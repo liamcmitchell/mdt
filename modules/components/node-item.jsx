@@ -3,7 +3,6 @@ import { Combinator } from 'react-combinators/rx'
 import Focusable from 'components/focusable'
 import $ from 'lib/rx'
 import _ from 'underscore'
-import data from 'client-data'
 import * as nodeHelpers from 'lib/node-helpers'
 import validate from 'lib/validate'
 
@@ -18,6 +17,7 @@ class NodeEdit extends Component {
 
   render() {
     const props = this.props
+    const data = props.data
     const schema = props.node.schema || {}
 
     return this._isSelect() ?
@@ -108,6 +108,7 @@ class NodeEdit extends Component {
 class NodeView extends Component {
   render() {
     const props = this.props
+    const data = props.data
     const item = props.item
     const isFocusable = nodeHelpers.isFocusable(props.node)
 
@@ -161,9 +162,9 @@ export default class NodeItem extends Component {
 
   render() {
     const props = this.props
+    const data = props.data
 
-    const path$ = data('/path').observable()
-      .map(path => _.filter(path.split('/')))
+    const path$ = data('/path').map(path => _.filter(path.split('/')))
 
     const isFocused$ = path$
       .map(path => _.isEqual(path, props.path))
@@ -191,6 +192,7 @@ export default class NodeItem extends Component {
           // Edit mode
           if (isFocused && editing) {
             return <NodeEdit
+              data={data}
               styles={props.styles}
               path={props.path}
               node={props.node}
@@ -201,6 +203,7 @@ export default class NodeItem extends Component {
           // View mode
           else {
             return <NodeView
+              data={data}
               styles={props.styles}
               path={props.path}
               node={props.node}

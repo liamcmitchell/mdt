@@ -1,11 +1,12 @@
 import fs from 'fs'
 import chokidar from 'chokidar'
 import createSource from 'data/createSource'
+import urlToString from 'data/url-to-string'
 
 export default createSource({
   OBSERVE: function(request, observer) {
     // Url is relative to project root.
-    const url = '.' + request.url
+    const url = '.' + urlToString(request.url)
     // TODO: Read could be shared with connected observable.
     const read = () => {
       fs.readdir(url, (error, data) => {

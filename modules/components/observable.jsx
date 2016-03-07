@@ -1,14 +1,18 @@
-import React, { Component } from 'react'
+import React, { Component, PropTypes } from 'react'
 
-// Placeholder until first render.
-const noVTree = {}
+export default class Observable extends Component {
+  static propTypes = {
+    observable: PropTypes.shape({
+      subscribe: PropTypes.func.isRequired
+    }).isRequired,
+    loading: PropTypes.node
+  }
 
-export default class Observe extends Component {
   constructor(props, context) {
     super(props, context)
 
     this.state = {
-      vTree: noVTree
+      vTree: props.loading
     }
   }
 
@@ -29,11 +33,8 @@ export default class Observe extends Component {
   }
 
   render() {
-    if (this.state.vTree === noVTree)
-      // Should the loading render be configurable?
-      return null
-    else
-      // Why clone? Not sure...
-      return React.cloneElement(this.state.vTree)
+    return this.state.vTree
+    // Does the vTree need to be cloned?
+    // return React.cloneElement(this.state.vTree)
   }
 }

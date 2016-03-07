@@ -8,26 +8,10 @@ MDT yo
 
 ## TODO
 - Type node should depend on schema
+- Should sources be passed url as string or array?
 
 - Data should accept arrays as urls
 - Combine path and editing into cursor
-- Rename item to value, values come first. Override with view function if necessary
-- Data fn should be passed as prop
-
-Put everything into data
-allow the following API:
-data('/user')
-data(['user', 'login'])
-data(['/user', '/user/login'])
-data([['user'], ['user', 'login']])
-data({
-  user: '/user',
-  userLogin: '/user/login'
-})
-data({
-  user: ['user'],
-  userLogin: ['user', 'login']
-})
 
 combineLatest as expected
 renderLatest like combinelatest but returns react component, optional loading component

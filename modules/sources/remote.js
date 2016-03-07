@@ -1,6 +1,7 @@
 import Rx from 'rx'
 import io from 'socket.io-client'
 import createSource from 'data/createSource'
+import urlToString from 'data/url-to-string'
 import req from 'browser-request'
 
 // TODO: Abstract out subscription manipulation and caching last value.
@@ -16,7 +17,7 @@ function createObserveHandler(remoteUrl) {
   websocketClient.on('connect', updateSubscriptions)
 
   return function(request, observer) {
-    const url = request.url
+    const url = urlToString(request.url)
 
     // Create subscription for this url if it doesn't exist.
     if (!subscriptions[url]) {
@@ -77,14 +78,14 @@ export default function buildRemoteHandler(remoteUrl) {
     default: function(request, promise) {
       req({
         // TODO: Should /data be added here? In parent? Do we need it?
-        url: remoteUrl + '/data' + request.url,
+        url: remoteUrl + '/data' + urlToString(request.url),
         method: request.method === 'GET' ? 'GET' : 'POST',
         headers: {
           'content-type': 'application/json'
         },
         body: JSON.stringify({
           method: request.method,
-          data: request.data
+          value: request.value
         })
       }, (err, response, body) => {
         if (!err && response.statusCode === 200) {

@@ -10,7 +10,7 @@ export default createSource({
     })
   },
   SET: function(request, promise) {
-    history.replaceState(null, request.data)
+    history.replaceState(null, request.value)
     promise.resolve()
   } 
 })

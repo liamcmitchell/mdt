@@ -6,17 +6,12 @@ import Rx from 'rx'
 import _ from 'underscore'
 import $ from 'lib/rx'
 import * as nodeHelpers from 'lib/node-helpers'
-import data from 'client-data'
 import wrapFn from 'lib/wrapFn'
 import getLoopingArrayItem from 'lib/getLoopingArrayItem'
 
 // Turn path into array of paths including root (empty) and original.
 function pathToSubPaths(path) {
   return [[]].concat(path.map((v, i) => path.slice(0, i + 1)))
-}
-
-function setPath(path) {
-  data('/path').set('/' + path.join('/'))
 }
 
 export default class NodeUI extends Component {
@@ -31,9 +26,13 @@ export default class NodeUI extends Component {
     // Used to record last child visited for each node.
     this.lastChildStore = this.lastChildStore || {}
     const props = this.props
+    const data = props.data
 
-    const path$ = data('/path').observable()
-      .map(path => _.filter(path.split('/')))
+    function setPath(path) {
+      data('/path').set('/' + path.join('/'))
+    }
+
+    const path$ = data('/path').map(path => _.filter(path.split('/')))
 
     const nodeAt$ = nodeHelpers.nodeAtPath$.bind(null, $(props.root))
     const focusedNode$ = path$.flatMapLatest(nodeAt$)
@@ -185,6 +184,7 @@ export default class NodeUI extends Component {
             pathToSubPaths(path).map((subPath, i) =>
               <NodeChildren
                 key={subPath.join('/')}
+                data={data}
                 path={subPath}
                 root={props.root}
                 styles={props.styles}

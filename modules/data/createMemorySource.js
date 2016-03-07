@@ -8,7 +8,7 @@ export default function createMemorySource(initialValue) {
       return subject.subscribe(observer)
     },
     SET: function(request, promise) {
-      subject.onNext(request.data)
+      subject.onNext(request.value)
       promise.resolve()
     }
   })

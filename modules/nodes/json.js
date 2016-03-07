@@ -4,9 +4,9 @@ import nodeFromValue from './node-from-value'
 export default {
   key: 'json',
   item: 'mdt.json',
-  nodes: data.observable('/file/mdt.json').map(contents => {
+  nodes: data('/file/mdt.json').map(contents => {
     return nodeFromValue(JSON.parse(contents), ['json'], (newValue) => {
-      return data.set('/file/mdt.json', JSON.stringify(newValue, null, 2))
+      return data('/file/mdt.json').set(JSON.stringify(newValue, null, 2))
     }).nodes
   })
 }

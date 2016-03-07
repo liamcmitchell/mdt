@@ -3,6 +3,7 @@ import { basename } from 'path'
 import async from 'async'
 import chokidar from 'chokidar'
 import createSource from 'data/createSource'
+import urlToString from 'data/url-to-string'
 import { sortBy } from 'underscore'
 
 function stat(path, cb) {
@@ -31,7 +32,7 @@ function ls(path, cb) {
 export default createSource({
   OBSERVE: function(request, observer) {
     // Url is relative to project root.
-    const url = '.' + request.url
+    const url = '.' + urlToString(request.url)
     // TODO: Read could be shared with connected observable.
     const read = () => {
       ls(url, (err, items) => {

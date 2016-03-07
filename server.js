@@ -28,10 +28,9 @@ const server = express()
         res.status(400).json({error: 'OBSERVE and GET not allowed in POST'})
       }
 
-      data.call({
-        url: req.url,
+      data(req.url).call({
         method: method,
-        data: req.body.data
+        value: req.body.value
       })
       .then(result => {
         res.json(result)
@@ -72,7 +71,7 @@ websocketServer.on('connection', function (socket) {
     // Add.
     subscriptions.forEach(url => {
       if (!socket.subscriptions[url]) {
-        socket.subscriptions[url] = data.observable(url).subscribe(d => {
+        socket.subscriptions[url] = data(url).subscribe(d => {
           socket.emit('data', {url: url, data: d})
         })
       }
