@@ -53,7 +53,7 @@ export default class NodeChildren extends Component {
           cursor: isCompact ? 'pointer' : null
         }}
         onClick={isCompact ?
-          () => data('/path').set('/' + props.path.join('/')) :
+          () => data('/cursor/path').set(props.path) :
           null
         }
       >

@@ -84,7 +84,7 @@ class NodeEdit extends Component {
     this.setState({value: event.target.value})
     if (this._isSelect()) {
       this.props.node.onChange(event.target.value)
-      data('/editing').set(false)
+      data('/cursor/editing').set(false)
     }
   }
 
@@ -133,7 +133,7 @@ class NodeView extends Component {
       }}
       onClick={(e) => {
         if (isFocusable) {
-          data('/path').set('/' + props.path.join('/'))
+          data('/cursor/path').set(props.path)
         }
         e.preventDefault()
       }}
@@ -164,7 +164,7 @@ export default class NodeItem extends Component {
     const props = this.props
     const data = props.data
 
-    const path$ = data('/path').map(path => _.filter(path.split('/')))
+    const path$ = data('/cursor/path').observable()
 
     const isFocused$ = path$
       .map(path => _.isEqual(path, props.path))
@@ -185,7 +185,7 @@ export default class NodeItem extends Component {
         {$.combineLatest([
           isOnPath$,
           isFocused$,
-          data('/editing'),
+          data('/cursor/editing'),
           item$
         ], (isOnPath, isFocused, editing, item) => {
 

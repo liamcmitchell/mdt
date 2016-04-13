@@ -83,8 +83,8 @@ function newPropertyHandler(val, path, onChange) {
       const newK = 'new' + (i ? i : '')
       return onChange(Object.assign(_.clone(val), _.object([newK], [null])))
         .then(() => {
-          data('/path').set('/' + path.concat(newK).join('/'))
-          return data('/editing').set(true)
+          data('/cursor/path').set(path.concat(newK))
+          return data('/cursor/editing').set(true)
         })
     }
   }
@@ -119,7 +119,7 @@ function objectNodes(val, path, onChange) {
             pair[0] === k ? [newK, pair[1]] : pair
           )))
           // Move to new path after making change.
-          .then(() => data('/path').set('/' + path.concat(newK).join('/')))
+          .then(() => data('/cursor/path').set(path.concat(newK)))
         },
         handlers: [
           newProperty,
@@ -131,7 +131,7 @@ function objectNodes(val, path, onChange) {
               const newVal = _.omit(val, k)
               const newKeys = _.keys(newVal)
               onChange(newVal)
-              .then(() => data('/path').set('/' + path.concat(newKeys[index] || _.last(newKeys)).join('/')))
+              .then(() => data('/cursor/path').set(path.concat(newKeys[index] || _.last(newKeys))))
             }
           }
         ]
@@ -147,7 +147,7 @@ function newItemHandler(val, path, onChange) {
     fn: () => {
       return onChange(val.concat(null))
         .then(() => {
-          return data('/path').set('/' + path.concat(val.length).join('/'))
+          return data('/cursor/path').set(path.concat(val.length))
         })
     }
   }
@@ -176,7 +176,7 @@ function arrayNodes(val, path, onChange) {
           newVal.splice(k, 1)
           newVal.splice(newK, 0, v)
           return onChange(newVal)
-            .then(() => data('/path').set('/' + path.concat(newK).join('/')))
+            .then(() => data('/cursor/path').set(path.concat(newK)))
         }
       },
       handlers: [
@@ -189,7 +189,7 @@ function arrayNodes(val, path, onChange) {
             newVal.splice(k, 1)
             return onChange(newVal)
               .then(() =>
-                data('/path').set('/' + path.concat(newVal.length === k ? k - 1 : k).join('/'))
+                data('/cursor/path').set(path.concat(newVal.length === k ? k - 1 : k))
               )
           }
         }

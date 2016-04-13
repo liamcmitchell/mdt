@@ -29,10 +29,10 @@ export default class NodeUI extends Component {
     const data = props.data
 
     function setPath(path) {
-      data('/path').set('/' + path.join('/'))
+      data('/cursor/path').set(path)
     }
 
-    const path$ = data('/path').map(path => _.filter(path.split('/')))
+    const path$ = data('/cursor/path').observable()
 
     const nodeAt$ = nodeHelpers.nodeAtPath$.bind(null, $(props.root))
     const focusedNode$ = path$.flatMapLatest(nodeAt$)
@@ -45,7 +45,7 @@ export default class NodeUI extends Component {
           return node.onChange ? {
             key: 'enter',
             label: 'edit',
-            fn: () => data('/editing').set(true)
+            fn: () => data('/cursor/editing').set(true)
           } : null
         }),
 
@@ -123,19 +123,19 @@ export default class NodeUI extends Component {
       $({
         key: 'esc',
         label: 'cancel',
-        fn: () => data('/editing').set(false)
+        fn: () => data('/cursor/editing').set(false)
       }),
 
       // Save
       $({
         key: 'enter',
         label: 'save',
-        fn: () => data('/editing').set(false)
+        fn: () => data('/cursor/editing').set(false)
       })
     ])
 
     const handlers$ = $.combineLatest([
-      data('/editing'),
+      data('/cursor/editing'),
       navHandlers$,
       editHandlers$
     ], (editing, nav, edit) =>

@@ -2,8 +2,8 @@ import fs from 'fs'
 import { basename } from 'path'
 import async from 'async'
 import chokidar from 'chokidar'
-import createSource from 'data/createSource'
-import urlToString from 'data/url-to-string'
+import sourceMethods from 'source/methods'
+import urlToString from 'source/url-to-string'
 import { sortBy } from 'underscore'
 
 function stat(path, cb) {
@@ -29,7 +29,7 @@ function ls(path, cb) {
   })
 }
 
-export default createSource({
+export default sourceMethods({
   OBSERVE: function(request, observer) {
     // Url is relative to project root.
     const url = '.' + urlToString(request.url)

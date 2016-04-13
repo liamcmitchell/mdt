@@ -8,10 +8,9 @@ MDT yo
 
 ## TODO
 - Type node should depend on schema
-- Should sources be passed url as string or array?
-
-- Data should accept arrays as urls
 - Combine path and editing into cursor
+- Optimistic updates...? New array item, cursor shifts to non-existant item
 
 combineLatest as expected
 renderLatest like combinelatest but returns react component, optional loading component
+

@@ -1,7 +1,7 @@
 import Rx from 'rx'
 import io from 'socket.io-client'
-import createSource from 'data/createSource'
-import urlToString from 'data/url-to-string'
+import sourceMethods from 'source/methods'
+import urlToString from 'source/url-to-string'
 import req from 'browser-request'
 
 // TODO: Abstract out subscription manipulation and caching last value.
@@ -73,7 +73,7 @@ function createObserveHandler(remoteUrl) {
 
 // For connecting to MDT compatible APIs.
 export default function buildRemoteHandler(remoteUrl) {
-  return createSource({
+  return sourceMethods({
     OBSERVE: createObserveHandler(remoteUrl),
     default: function(request, promise) {
       req({

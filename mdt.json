@@ -1,11 +1,12 @@
 {
   "boolean": false,
-  "number": 124,
+  "number": 125,
   "string": "YOLO",
   "array": [
     7,
     3,
-    2
+    2,
+    null
   ],
   "object": {
     "new": true

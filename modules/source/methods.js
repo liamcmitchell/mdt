@@ -1,6 +1,6 @@
 import Rx from 'rx'
 
-export default function createSource(methods) {
+export default function sourceMethods(methods) {
   return function(request) {
     const handler = methods[request.method] || methods.default
 

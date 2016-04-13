@@ -17,7 +17,6 @@ data(url).set(val) -> promise
 data(url).call(request) -> promise
 */
 
-import createRouter from './createRouter'
 import _ from 'underscore'
 import Rx from 'rx'
 import urlToString from './url-to-string'
@@ -45,10 +44,10 @@ function isUrl(url) {
     _.isArray(url) && _.isString(url[0])
 }
 
-function observe(router, url) {
+function observe(source, url) {
   return isObservable(url) ?
     url :
-    router({
+    source({
       url: url,
       method: 'OBSERVE'
     })
@@ -65,66 +64,79 @@ function singleUrl(urls) {
   return urls[0]
 }
 
+// Top source fn
+function entry(source, request) {
+  if (!request.url || !_.isArray(request.url)) {
+    throw new Error('Url must be an array')
+  }
+  if (!request.method || !_.isString(request.method)) {
+    throw new Error('Method must be a string')
+  }
+  if (!request.source) {
+    // Pass on source so endpoints can access other data.
+    request.source = source
+  }
+  return source(request)
+}
+
 // External API
 
-// Build the data function from given sources.
-export default function createDataSource(sources) {
-  const router = createRouter(sources)
-
-  const data = function(urls) {
-    return new Data(router, urls)
+// Return dev friendly API for given source.
+export default function sourceInterface(source) {
+  if (typeof source !== 'function') {
+    throw new Error('Source must be a function')
   }
 
-  return data
+  source = entry.bind(null, source)
+
+  return function createSourceInterface(urls) {
+    return new SourceInterface(source, urls)
+  }
 }
 
-function Data(router, urls) {
+function SourceInterface(source, urls) {
+  this.source = source
   this.urls = normalizeUrls(urls)
-  this.router = router
 }
 
-Data.prototype.observable = function() {
+SourceInterface.prototype.observable = function() {
   if (isSingleUrl(this.urls)) {
     // url -> val
-    return observe(this.router, singleUrl(this.urls))
+    return observe(this.source, singleUrl(this.urls))
   }
   else if (_.isArray(this.urls)) {
     // [url, url] -> [val, val]
-    return Rx.Observable.combineLatest(this.urls.map(observe.bind(null, this.router)))
+    return Rx.Observable.combineLatest(this.urls.map(observe.bind(null, this.source)))
   }
   else {
     // {k1: url, k2: url} -> {k1: val, k2: val}
     const keys = _.keys(this.urls)
     return Rx.Observable.combineLatest(
-      _.values(this.urls).map(observe.bind(null, this.router))
+      _.values(this.urls).map(observe.bind(null, this.source))
     )
       .map(values => _.object(keys, values))
   }
 }
 
-Data.prototype.map = function(fn) {
+SourceInterface.prototype.map = function(fn) {
   return this.observable().map(fn)
 }
 
-Data.prototype.subscribe = function() {
+SourceInterface.prototype.subscribe = function() {
   const o = this.observable()
   return o.subscribe.apply(o, arguments)
 }
 
-Data.prototype.set = function(value) {
-  return this.router({
+SourceInterface.prototype.set = function(value) {
+  return this.source({
     url: singleUrl(this.urls),
     method: 'SET',
     value: value
   })
 }
 
-Data.prototype.call = function(req) {
-  if (!req.method) {
-    throw new Error('Method name is required')
-  }
-
-  return this.router(Object.assign(req, {
+SourceInterface.prototype.call = function(req) {
+  return this.source(Object.assign(req, {
     url: singleUrl(this.urls)
   }))
 }
