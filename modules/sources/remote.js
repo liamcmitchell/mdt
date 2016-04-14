@@ -4,80 +4,32 @@ import sourceMethods from 'source/methods'
 import urlToString from 'source/url-to-string'
 import req from 'browser-request'
 
-// TODO: Abstract out subscription manipulation and caching last value.
-function createObserveHandler(remoteUrl) {
+// Relays requests via websockets for observables and REST for all
+// others.
+export default function buildRemoteHandler(remoteUrl) {
   const subscriptions = {}
   const websocketClient = io(remoteUrl)
-  const serverData$ = Rx.Observable.fromEvent(websocketClient, 'data')
-
-  function updateSubscriptions() {
+  // Maintain a list of urls we are subscribed to on the server.
+  const updateSubscriptions = () =>
     websocketClient.emit('subscriptions', Object.keys(subscriptions))
-  }
-
   websocketClient.on('connect', updateSubscriptions)
 
-  return function(request, observer) {
-    const url = urlToString(request.url)
-
-    // Create subscription for this url if it doesn't exist.
-    if (!subscriptions[url]) {
-      subscriptions[url] = {
-        subscribers: 0
-      }
-      updateSubscriptions()
-    }
-
-    const subscription = subscriptions[url]
-
-    subscription.subscribers++
-
-    // If there is an existing value, push that immediately.
-    if (subscription.hasOwnProperty('lastValue')) {
-      observer.onNext(subscription.lastValue)
-    }
-
-    // Connect to data source.
-    const serverDataSubscription = serverData$
-      .filter(data => data.url === url)
-      .pluck('data')
-      .subscribe(data => {
-        // Save last value so further subscriptions can have immediate value.
-        subscription.lastValue = data
-        observer.onNext(data)
-      })
-
-    // Return dispose function.
-    return () => {
-      serverDataSubscription.dispose()
-
-      subscription.subscribers--
-
-      // Sanity check.
-      if (subscription.subscribers < 0) {
-        throw new Error('Subscribers count below 0: ', subscription.subscribers)
-      }
-
-      // Clean up subscription.
-      if (subscription.subscribers === 0) {
-        // Defer in case we are resubscribing on next tick.
-        setTimeout(() => {
-          if (subscription.subscribers === 0) {
-            delete subscriptions[url]
-            updateSubscriptions()
-          }
-        })
-      }
-    }
-  }
-}
-
-// For connecting to MDT compatible APIs.
-export default function buildRemoteHandler(remoteUrl) {
   return sourceMethods({
-    OBSERVE: createObserveHandler(remoteUrl),
+    OBSERVE: (request, observer) => {
+      const url = urlToString(request.url)
+
+      subscriptions[url] = true
+      updateSubscriptions()
+
+      return Rx.Observable.fromEvent(websocketClient, 'data')
+        .filter(data => data.url === url)
+        .pluck('data')
+        .subscribe(observer)
+    },
+    // H
     default: function(request, promise) {
       req({
-        // TODO: Should /data be added here? In parent? Do we need it?
+        // Uses /data endpoint on server.
         url: remoteUrl + '/data' + urlToString(request.url),
         method: request.method === 'GET' ? 'GET' : 'POST',
         headers: {

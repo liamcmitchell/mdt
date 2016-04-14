@@ -7,12 +7,16 @@ import data from 'client-data'
 class App extends Component {
   componentWillMount() {
     // Disable history.back on backspace, noone needs that.
-    document.addEventListener('keydown', function(e) {
+    this._handleKeydown = (e) => {
       if (e.keyCode === 8 && !e.target.nodeName.toLowerCase().match(/input|textarea/)) {
         e.preventDefault()
       }
-    })
+    }
+    document.addEventListener('keydown', this._handleKeydown)
+  }
 
+  componentWillUnmount() {
+    document.removeEventListener('keydown', this._handleKeydown)
   }
 
   render() {
