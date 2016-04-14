@@ -1,4 +1,4 @@
-import sourceInterface from 'source'
+import sourceInterface from 'source/interface'
 import sourceRoutes from 'source/routes'
 import fileSource from 'sources/file'
 import dirSource from 'sources/dir'

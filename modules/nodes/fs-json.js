@@ -6,7 +6,7 @@ function fsNodes(path) {
     items.map(item => ({
       key: item.name,
       item: item.name + (item.isDirectory ? '/' : ''),
-      nodes: item.isFile ?
+      nodes: () => item.isFile ?
         item.name.match(/\.json$/) ?
           data('/file' + path + '/' + item.name).map(value =>
             nodeFromValue(JSON.parse(value), ['TODO']).nodes

@@ -5,7 +5,7 @@ export default function fsNodes(path) {
     items.map(item => ({
       key: item.name,
       item: item.name + (item.isDirectory ? '/' : ''),
-      nodes: item.isFile ?
+      nodes: () => item.isFile ?
         [{
           key: 'content',
           item: data('/file' + path + '/' + item.name),

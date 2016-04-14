@@ -29,7 +29,7 @@ function set(path, object, value) {
   return object
 }
 
-export default function createMemorySource(initialValue) {
+export default function memorySource(initialValue) {
   const subject = new Rx.BehaviorSubject(initialValue)
 
   return sourceMethods({

@@ -1,20 +1,20 @@
 /*
 A URL can be string beginning with / or array of url pieces:
-data('/user/login')
-data(['user', 'login'])
+source('/user/login')
+source(['user', 'login'])
 
 Multiple URLs are supported as an array or map:
-data(['/user', '/user/login'])
-data({
+source(['/user', '/user/login'])
+source({
   user: '/user',
   userLogin: '/user/login'
 })
 
-data(url) -> observable
-data(url).map(fn) -> observable
-data(url).render(fn) -> react component
-data(url).set(val) -> promise
-data(url).call(request) -> promise
+source(url) -> observable
+source(url).map(fn) -> observable
+source(url).render(fn) -> react component
+source(url).set(val) -> promise
+source(url).call(request) -> promise
 */
 
 import _ from 'underscore'
