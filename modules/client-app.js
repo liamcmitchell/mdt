@@ -1,8 +1,14 @@
 import React, { Component } from 'react'
 import NodeUI from 'components/node-ui'
 import colors from 'lib/colors'
-import rootNode from 'nodes/root'
-import data from 'client-data'
+import sourceInterface from 'source/interface'
+import sourceRoutes from 'source/routes'
+import sourceAlias from 'source/alias'
+import sourceCache from 'source/cache'
+import remoteSource from 'sources/remote'
+import cursorSource from 'sources/cursor'
+import createHistory from 'history/lib/createBrowserHistory'
+import nodeSource from 'sources/node'
 
 class App extends Component {
   componentWillMount() {
@@ -21,11 +27,16 @@ class App extends Component {
 
   render() {
     return <NodeUI
-      data={data}
+      data={sourceInterface(sourceCache(sourceRoutes({
+        server: remoteSource(document.location.origin),
+        file: sourceAlias('/server/file'),
+        dir: sourceAlias('/server/dir'),
+        cursor: cursorSource(createHistory()),
+        node: nodeSource
+      })))}
       styles={Object.assign({
         padding: '10px 20px'
       }, colors.solarizedDark)}
-      root={rootNode}
     />
   }
 }

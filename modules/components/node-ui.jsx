@@ -5,7 +5,7 @@ import NodeChildren from 'components/node-children'
 import Rx from 'rx'
 import _ from 'underscore'
 import $ from 'lib/rx'
-import * as nodeHelpers from 'lib/node-helpers'
+import { isFocusable, nodeWithKey } from 'lib/node-helpers'
 import wrapFn from 'lib/wrapFn'
 import getLoopingArrayItem from 'lib/getLoopingArrayItem'
 
@@ -17,9 +17,7 @@ function pathToSubPaths(path) {
 export default class NodeUI extends Component {
   static propTypes = {
     // Passed on to item, content & child nodes unless overridden.
-    styles: React.PropTypes.object,
-    // Root node.
-    root: React.PropTypes.object.isRequired
+    styles: React.PropTypes.object
   }
 
   render() {
@@ -34,13 +32,11 @@ export default class NodeUI extends Component {
 
     const path$ = data('/cursor/path').observable()
 
-    const nodeAt$ = nodeHelpers.nodeAtPath$.bind(null, $(props.root))
-    const focusedNode$ = path$.flatMapLatest(nodeAt$)
-
     const navHandlers$ = $.combineLatest([
 
       // Edit
-      focusedNode$
+      path$
+        .flatMapLatest(path => data(['node', 'node'].concat(path)))
         .map(node => {
           return node.onChange ? {
             key: 'enter',
@@ -59,16 +55,15 @@ export default class NodeUI extends Component {
       // Up/down
       $.combineLatest({
         path: path$,
-        siblings: path$
-          .map(path => path.slice(0, -1))
-          .flatMapLatest(nodeAt$)
-          .flatMapLatest(nodeHelpers.nodeChildren$)
+        siblings: path$.flatMapLatest(path =>
+          data(['node', 'nodes'].concat(path.slice(0, -1)))
+        )
       }, ({path, siblings}) => {
         // Handler is used by both up & down.
         const fn = (event) => {
           const key = keycode(event)
           const currentKey = path[path.length - 1]
-          const keys = siblings.filter(nodeHelpers.isFocusable).map(n => n.key)
+          const keys = siblings.filter(isFocusable).map(n => n.key)
           // Siblings may be empty if there is a bad url (we still show error).
           if (keys.length) {
             setPath(path.slice(0, -1).concat(
@@ -90,18 +85,18 @@ export default class NodeUI extends Component {
       // Right
       $.combineLatest({
         path: path$,
-        children: focusedNode$
-          .flatMapLatest(nodeHelpers.nodeChildren$)
+        children: path$
+          .flatMapLatest(path => data(['node', 'nodes'].concat(path)))
       }, ({path, children}) => {
         // First save the current path.
         path.forEach((key, i) => {
           this.lastChildStore[path.slice(0, i).join('/')] = key
         })
 
-        const focusable = children.filter(nodeHelpers.isFocusable)
+        const focusable = children.filter(isFocusable)
         if (focusable.length === 0) return null
         const lastChildKey = this.lastChildStore[path.join('/')]
-        const lastChild = focusable.find(nodeHelpers.nodeWithKey(lastChildKey))
+        const lastChild = focusable.find(nodeWithKey(lastChildKey))
         // Prefer last child if it exists, otherwise use the first.
         const childKey = lastChild ? lastChild.key : focusable[0].key
 
@@ -113,8 +108,8 @@ export default class NodeUI extends Component {
       .startWith([]),
 
       // Node
-      focusedNode$
-        .flatMapLatest(nodeHelpers.nodeHandlers$)
+      path$
+        .flatMapLatest(path => data(['node', 'handlers'].concat(path)))
 
     ])
 
@@ -147,6 +142,7 @@ export default class NodeUI extends Component {
         .uniq(handler => handler.key)
         .value()
     )
+    .startWith([])
 
     const handleKeyDown$ = handlers$
       .map(handlers => {
@@ -162,6 +158,7 @@ export default class NodeUI extends Component {
       })
       // Return a wrapper function that won't trigger rerender.
       .scan(wrapFn).distinctUntilChanged()
+      .startWith(() => {})
 
     return <Combinator>
       <div
@@ -186,7 +183,6 @@ export default class NodeUI extends Component {
                 key={subPath.join('/')}
                 data={data}
                 path={subPath}
-                root={props.root}
                 styles={props.styles}
                 selected={path[i]}
                 selectedIsFocused={path.length === i + 1}

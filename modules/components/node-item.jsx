@@ -3,7 +3,7 @@ import { Combinator } from 'react-combinators/rx'
 import Focusable from 'components/focusable'
 import $ from 'lib/rx'
 import _ from 'underscore'
-import * as nodeHelpers from 'lib/node-helpers'
+import { isFocusable } from 'lib/node-helpers'
 import validate from 'lib/validate'
 
 class NodeEdit extends Component {
@@ -110,19 +110,19 @@ class NodeView extends Component {
     const props = this.props
     const data = props.data
     const item = props.item
-    const isFocusable = nodeHelpers.isFocusable(props.node)
+    const focusable = isFocusable(props.node)
 
     return <Focusable
       el='div'
       focused={props.isFocused}
       href={'/' + props.path.join('/')}
       style={{
-        cursor: isFocusable ? 'pointer' : null,
+        cursor: focusable ? 'pointer' : null,
         display: 'block',
         textDecoration: 'none',
         color: props.item instanceof Error ?
           props.styles.red :
-          isFocusable ?
+          focusable ?
             props.styles.primaryColor :
             props.styles.secondaryColor,
         padding: props.styles.padding,
@@ -132,7 +132,7 @@ class NodeView extends Component {
           null
       }}
       onClick={(e) => {
-        if (isFocusable) {
+        if (focusable) {
           data('/cursor/path').set(props.path)
         }
         e.preventDefault()

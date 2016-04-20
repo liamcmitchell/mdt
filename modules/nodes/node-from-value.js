@@ -1,6 +1,5 @@
 import _ from 'underscore'
 import Rx from 'rx'
-import data from 'client-data'
 
 export default function nodeFromValue(val, path, onChange) {
   if (typeof val === 'function') {
@@ -82,10 +81,10 @@ function newPropertyHandler(val, path, onChange) {
       }
       const newK = 'new' + (i ? i : '')
       return onChange(Object.assign(_.clone(val), _.object([newK], [null])))
-        .then(() => {
-          data('/cursor/path').set(path.concat(newK))
-          return data('/cursor/editing').set(true)
-        })
+        // .then(() => {
+        //   data('/cursor/path').set(path.concat(newK))
+        //   return data('/cursor/editing').set(true)
+        // })
     }
   }
 }
@@ -119,7 +118,7 @@ function objectNodes(val, path, onChange) {
             pair[0] === k ? [newK, pair[1]] : pair
           )))
           // Move to new path after making change.
-          .then(() => data('/cursor/path').set(path.concat(newK)))
+          // .then(() => data('/cursor/path').set(path.concat(newK)))
         },
         handlers: [
           newProperty,
@@ -131,7 +130,7 @@ function objectNodes(val, path, onChange) {
               const newVal = _.omit(val, k)
               const newKeys = _.keys(newVal)
               onChange(newVal)
-              .then(() => data('/cursor/path').set(path.concat(newKeys[index] || _.last(newKeys))))
+              // .then(() => data('/cursor/path').set(path.concat(newKeys[index] || _.last(newKeys))))
             }
           }
         ]
@@ -146,9 +145,7 @@ function newItemHandler(val, path, onChange) {
     label: 'new item',
     fn: () => {
       return onChange(val.concat(null))
-        .then(() => {
-          return data('/cursor/path').set(path.concat(val.length))
-        })
+        // .then(() => data('/cursor/path').set(path.concat(val.length)))
     }
   }
 }
@@ -176,7 +173,7 @@ function arrayNodes(val, path, onChange) {
           newVal.splice(k, 1)
           newVal.splice(newK, 0, v)
           return onChange(newVal)
-            .then(() => data('/cursor/path').set(path.concat(newK)))
+            // .then(() => data('/cursor/path').set(path.concat(newK)))
         }
       },
       handlers: [
@@ -188,9 +185,9 @@ function arrayNodes(val, path, onChange) {
             const newVal = _.clone(val)
             newVal.splice(k, 1)
             return onChange(newVal)
-              .then(() =>
-                data('/cursor/path').set(path.concat(newVal.length === k ? k - 1 : k))
-              )
+              // .then(() =>
+              //   data('/cursor/path').set(path.concat(newVal.length === k ? k - 1 : k))
+              // )
           }
         }
       ]

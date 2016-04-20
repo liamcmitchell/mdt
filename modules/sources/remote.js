@@ -18,12 +18,17 @@ export default function buildRemoteHandler(remoteUrl) {
     OBSERVE: (request, observer) => {
       const url = urlToString(request.url)
 
+      // No subscription count, we rely on being cached by parent.
       subscriptions[url] = true
       updateSubscriptions()
 
       return Rx.Observable.fromEvent(websocketClient, 'data')
         .filter(data => data.url === url)
         .pluck('data')
+        .finally(() => {
+          delete subscriptions[url]
+          updateSubscriptions()
+        })
         .subscribe(observer)
     },
     // H

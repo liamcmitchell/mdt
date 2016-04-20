@@ -1,27 +1,38 @@
-import data from 'client-data'
 import nodeFromValue from './node-from-value'
 
-function fsNodes(path) {
-  return data('/dir' + path).map(items =>
+export default function nodes({fsPath, nodePath}, {source, path}) {
+  // To get the path we care about, we replace the base node path with fs path.
+  path = fsPath.concat(path.slice(nodePath.length))
+  return source({
+    method: 'OBSERVE',
+    url: ['dir'].concat(path)
+  }).map(items =>
     items.map(item => ({
       key: item.name,
       item: item.name + (item.isDirectory ? '/' : ''),
-      nodes: () => item.isFile ?
+      nodes: item.isFile ?
         item.name.match(/\.json$/) ?
-          data('/file' + path + '/' + item.name).map(value =>
+          source({
+            method: 'OBSERVE',
+            url: ['file'].concat(path, item.name)
+          }).map(value =>
             nodeFromValue(JSON.parse(value), ['TODO']).nodes
           ) :
           [{
             key: 'content',
-            item: data('/file' + path + '/' + item.name),
+            item: source({
+              method: 'OBSERVE',
+              url: ['file'].concat(path, item.name)
+            }),
             focusable: false
           }] :
-        fsNodes(path + '/' + item.name),
+        fsNodesJson.bind(null, {fsPath, nodePath}),
       handlers: item.isFile ? [{
         key: 'enter',
         fn: function() {
-          data('/file' + path + '/' + item.name).call({
-            method: 'OPEN'
+          return source({
+            method: 'OPEN',
+            url: ['file'].concat(path, item.name)
           })
         }
       }] :
@@ -30,8 +41,9 @@ function fsNodes(path) {
   )
 }
 
-export default {
-  key: 'local-json',
-  item: 'local with json',
-  nodes: fsNodes('')
+// Take fs path on config.
+export default function fsNodesJson(fsPath) {
+  // Then get node path from first call.
+  return ({source, path}) =>
+    nodes({fsPath, nodePath: path}, {source, path})
 }

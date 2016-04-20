@@ -44,15 +44,6 @@ function isUrl(url) {
     _.isArray(url) && _.isString(url[0])
 }
 
-function observe(source, url) {
-  return isObservable(url) ?
-    url :
-    source({
-      url: url,
-      method: 'OBSERVE'
-    })
-}
-
 function isSingleUrl(urls) {
   return _.isArray(urls) && urls.length === 1
 }
@@ -64,19 +55,26 @@ function singleUrl(urls) {
   return urls[0]
 }
 
-// Top source fn
-function entry(source, request) {
-  if (!request.url || !_.isArray(request.url)) {
-    throw new Error('Url must be an array')
+function sourceTypeCheck(source) {
+  return function(request) {
+    if (!request.url || !_.isArray(request.url)) {
+      throw new Error('Url must be an array')
+    }
+    if (!request.method || !_.isString(request.method)) {
+      throw new Error('Method must be a string')
+    }
+
+    return source(request)
   }
-  if (!request.method || !_.isString(request.method)) {
-    throw new Error('Method must be a string')
+}
+
+function sourceRecursion(source) {
+  return function(request) {
+    if (!request.source) {
+      request.source = sourceRecursion(source)
+    }
+    return source(request)
   }
-  if (!request.source) {
-    // Pass on source so endpoints can access other data.
-    request.source = source
-  }
-  return source(request)
 }
 
 // External API
@@ -87,7 +85,7 @@ export default function sourceInterface(source) {
     throw new Error('Source must be a function')
   }
 
-  source = entry.bind(null, source)
+  source = sourceRecursion(sourceTypeCheck(source))
 
   return function createSourceInterface(urls) {
     return new SourceInterface(source, urls)
@@ -99,20 +97,29 @@ function SourceInterface(source, urls) {
   this.urls = normalizeUrls(urls)
 }
 
+SourceInterface.prototype.observeSingle = function(url) {
+  return isObservable(url) ?
+    url :
+    this.source({
+      method: 'OBSERVE',
+      url: url
+    })
+}
+
 SourceInterface.prototype.observable = function() {
   if (isSingleUrl(this.urls)) {
     // url -> val
-    return observe(this.source, singleUrl(this.urls))
+    return this.observeSingle(singleUrl(this.urls))
   }
   else if (_.isArray(this.urls)) {
     // [url, url] -> [val, val]
-    return Rx.Observable.combineLatest(this.urls.map(observe.bind(null, this.source)))
+    return Rx.Observable.combineLatest(this.urls.map(this.observeSingle.bind(this)))
   }
   else {
     // {k1: url, k2: url} -> {k1: val, k2: val}
     const keys = _.keys(this.urls)
     return Rx.Observable.combineLatest(
-      _.values(this.urls).map(observe.bind(null, this.source))
+      _.values(this.urls).map(this.observeSingle.bind(this))
     )
       .map(values => _.object(keys, values))
   }
@@ -136,7 +143,7 @@ SourceInterface.prototype.set = function(value) {
 }
 
 SourceInterface.prototype.call = function(req) {
-  return this.source(Object.assign(req, {
+  return this.source(Object.assign({
     url: singleUrl(this.urls)
-  }))
+  }, req))
 }

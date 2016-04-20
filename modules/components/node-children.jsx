@@ -3,7 +3,7 @@ import { Combinator } from 'react-combinators/rx'
 import NodeItem from 'components/node-item'
 import _ from 'underscore'
 import $ from 'lib/rx'
-import * as nodeHelpers from 'lib/node-helpers'
+import { nodeWithKey } from 'lib/node-helpers'
 
 export default class NodeChildren extends Component {
 
@@ -19,12 +19,10 @@ export default class NodeChildren extends Component {
     const isFocused = props.selectedIsFocused
     const isCompact = props.selected && !isFocused
 
-    const nodes$ = nodeHelpers.nodeAtPath$($(props.root), props.path)
-      // Get children.
-      .flatMapLatest(nodeHelpers.nodeChildren$)
+    const nodes$ = data(['node', 'nodes'].concat(props.path))
       .map(nodes => {
         // If the next node isn't there, add a placeholder for error.
-        if (props.selected && !nodes.find(nodeHelpers.nodeWithKey(props.selected))) {
+        if (props.selected && !nodes.find(nodeWithKey(props.selected))) {
           const dummy = {
             key: props.selected,
             item: new Error(props.selected + ' not found')
