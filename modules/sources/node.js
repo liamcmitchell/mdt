@@ -1,9 +1,9 @@
 import nodeSource from 'source/node'
 
-import dummyNode from 'nodes/dummy'
-import jsonNode from 'nodes/json'
-import fsNodes from 'nodes/fs'
-import fsNodesJson from 'nodes/fs-json'
+import dummyNode from './nodes/dummy'
+import jsonNode from './nodes/json'
+import fsNodes from './nodes/fs'
+import fsNodesJson from './nodes/fs-json'
 
 export default nodeSource({
   nodes: [
