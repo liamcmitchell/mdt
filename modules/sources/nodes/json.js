@@ -9,12 +9,16 @@ export default {
       url: ['file', 'mdt.json']
     })
     .map(contents => {
-      return nodeFromValue(JSON.parse(contents), ['json'], (newValue) => {
-        return source({
-          method: 'SET',
-          url: ['file', 'mdt.json'],
-          value: JSON.stringify(newValue, null, 2)
-        })
+      return nodeFromValue({
+        value: JSON.parse(contents),
+        path: ['json'],
+        onChange: (newValue) => {
+          return source({
+            method: 'SET',
+            url: ['file', 'mdt.json'],
+            value: JSON.stringify(newValue, null, 2)
+          })
+        }
       }).nodes
     })
 }

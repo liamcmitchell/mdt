@@ -16,7 +16,10 @@ export default function nodes({fsPath, nodePath}, {source, path}) {
             method: 'OBSERVE',
             url: ['file'].concat(path, item.name)
           }).map(value =>
-            nodeFromValue(JSON.parse(value), ['TODO']).nodes
+            nodeFromValue({
+              value: JSON.parse(value),
+              path: ['TODO']
+            }).nodes
           ) :
           [{
             key: 'content',

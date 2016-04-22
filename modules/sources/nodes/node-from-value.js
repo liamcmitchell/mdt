@@ -1,31 +1,32 @@
 import _ from 'underscore'
 import Rx from 'rx'
 
-export default function nodeFromValue(val, path, onChange) {
-  if (typeof val === 'function') {
+export default function nodeFromValue(opts) {
+  const value = opts.value
+  if (typeof value === 'function') {
     throw new Error("Functions can't be represented as nodes")
   }
   return {
-    nodes: [typeNode(val, path, onChange)].concat(
-      _.isArray(val) ? arrayNodes(val, path, onChange) :
-      _.isObject(val) ? objectNodes(val, path, onChange) :
-      _.isNull(val) ? nullNodes(val, path, onChange) :
-      _.isBoolean(val) ? booleanNodes(val, path, onChange) :
-      _.isNumber(val) ? numberNodes(val, path, onChange) :
-      _.isString(val) ? stringNodes(val, path, onChange) :
+    nodes: [typeNode(opts)].concat(
+      _.isArray(value) ? arrayNodes(opts) :
+      _.isObject(value) ? objectNodes(opts) :
+      _.isNull(value) ? nullNodes(opts) :
+      _.isBoolean(value) ? booleanNodes(opts) :
+      _.isNumber(value) ? numberNodes(opts) :
+      _.isString(value) ? stringNodes(opts) :
       []
     )
   }
 }
 
-function getType(val) {
+function getType(value) {
   return (
-    _.isArray(val) ? 'array' :
-    _.isObject(val) ? 'object' :
-    _.isNull(val) ? 'null' :
-    _.isBoolean(val) ? 'boolean' :
-    _.isNumber(val) ? 'number' :
-    _.isString(val) ? 'string' :
+    _.isArray(value) ? 'array' :
+    _.isObject(value) ? 'object' :
+    _.isNull(value) ? 'null' :
+    _.isBoolean(value) ? 'boolean' :
+    _.isNumber(value) ? 'number' :
+    _.isString(value) ? 'string' :
     'unknown'
   )
 }
@@ -49,38 +50,38 @@ function types() {
   }
 }
 
-function typeNode(val, path, onChange) {
+function typeNode({value, path, onChange}) {
   return {
     // Object property can be 'type'. Better solution is to namespace all keys
     // but I want to avoid this if possible.
-    key: _.isObject(val) && !_.isArray(val) ?
-      uniqueString('type', _.keys(val)) :
+    key: _.isObject(value) && !_.isArray(value) ?
+      uniqueString('type', _.keys(value)) :
       'type',
-    value: getType(val),
-    item: '<' + getType(val) + '>',
+    value: getType(value),
+    item: '<' + getType(value) + '>',
     schema: {
       enum: _.keys(types())
     },
     onChange: newType => onChange(types()[newType]),
     handlers: [
-      getType(val) === 'object' ? newPropertyHandler(val, path, onChange) :
-      getType(val) === 'array' ? newItemHandler(val, path, onChange) :
+      getType(value) === 'object' ? newPropertyHandler({value, path, onChange}) :
+      getType(value) === 'array' ? newItemHandler({value, path, onChange}) :
         null
     ]
   }
 }
 
-function newPropertyHandler(val, path, onChange) {
+function newPropertyHandler({value, path, onChange}) {
   return {
     key: 'n',
     label: 'new property',
     fn: () => {
       let i = 0
-      while (val.hasOwnProperty('new' + (i ? i : ''))) {
+      while (value.hasOwnProperty('new' + (i ? i : ''))) {
         i++
       }
       const newK = 'new' + (i ? i : '')
-      return onChange(Object.assign(_.clone(val), _.object([newK], [null])))
+      return onChange(Object.assign(_.clone(value), _.object([newK], [null])))
         // .then(() => {
         //   data('/cursor/path').set(path.concat(newK))
         //   return data('/cursor/editing').set(true)
@@ -89,14 +90,17 @@ function newPropertyHandler(val, path, onChange) {
   }
 }
 
-function objectNodes(val, path, onChange) {
-  const newProperty = newPropertyHandler(val, path, onChange)
+function objectNodes({value, path, onChange}) {
+  const newProperty = newPropertyHandler({value, path, onChange})
 
-  return _.map(val, (v, k) => {
+  return _.map(value, (v, k) => {
     return Object.assign(
-      nodeFromValue(v, path.concat(k), newV =>
-        onChange(Object.assign(_.clone(val), _.object([k], [newV])))
-      ),
+      nodeFromValue({
+        value: v,
+        path: path.concat(k),
+        onChange: newV =>
+          onChange(Object.assign(_.clone(value), _.object([k], [newV])))
+      }),
       {
         key: k.toString(),
         item: k.toString(),
@@ -104,7 +108,7 @@ function objectNodes(val, path, onChange) {
         schema: {
           type: 'string',
           validator: testK => {
-            if (testK !== k && val.hasOwnProperty(testK)) {
+            if (testK !== k && value.hasOwnProperty(testK)) {
               return 'Duplicate key exists'
             }
             if (testK === '') {
@@ -114,7 +118,7 @@ function objectNodes(val, path, onChange) {
         },
         onChange: newK => {
           // Try to preserve key order.
-          return onChange(_.object(_.pairs(val).map(pair =>
+          return onChange(_.object(_.pairs(value).map(pair =>
             pair[0] === k ? [newK, pair[1]] : pair
           )))
           // Move to new path after making change.
@@ -126,8 +130,8 @@ function objectNodes(val, path, onChange) {
             key: 'backspace',
             label: 'delete property',
             fn: () => {
-              const index = _.indexOf(_.keys(val), k)
-              const newVal = _.omit(val, k)
+              const index = _.indexOf(_.keys(value), k)
+              const newVal = _.omit(value, k)
               const newKeys = _.keys(newVal)
               onChange(newVal)
               // .then(() => data('/cursor/path').set(path.concat(newKeys[index] || _.last(newKeys))))
@@ -139,24 +143,27 @@ function objectNodes(val, path, onChange) {
   })
 }
 
-function newItemHandler(val, path, onChange) {
+function newItemHandler({value, path, onChange}) {
   return {
     key: 'n',
     label: 'new item',
     fn: () => {
-      return onChange(val.concat(null))
-        // .then(() => data('/cursor/path').set(path.concat(val.length)))
+      return onChange(value.concat(null))
+        // .then(() => data('/cursor/path').set(path.concat(value.length)))
     }
   }
 }
 
-function arrayNodes(val, path, onChange) {
-  const newItem = newItemHandler(val, path, onChange)
+function arrayNodes({value, path, onChange}) {
+  const newItem = newItemHandler({value, path, onChange})
 
-  return _.map(val, (v, k) => Object.assign(
-    nodeFromValue(v, path.concat(k), newV =>
-      onChange(val.map((oldV, oldK) => oldK === k ? newV : oldV))
-    ),
+  return _.map(value, (v, k) => Object.assign(
+    nodeFromValue({
+      value: v,
+      path: path.concat(k),
+      onChange: newV =>
+        onChange(value.map((oldV, oldK) => oldK === k ? newV : oldV))
+    }),
     {
       key: k.toString(),
       item: k,
@@ -164,12 +171,12 @@ function arrayNodes(val, path, onChange) {
       schema: {
         type: 'number',
         minimum: 0,
-        maximum: val.length - 1,
+        maximum: value.length - 1,
         multipleOf: 1
       },
       onChange: newK => {
         if (newK !== k) {
-          const newVal = _.clone(val)
+          const newVal = _.clone(value)
           newVal.splice(k, 1)
           newVal.splice(newK, 0, v)
           return onChange(newVal)
@@ -182,7 +189,7 @@ function arrayNodes(val, path, onChange) {
           key: 'backspace',
           label: 'delete item',
           fn: () => {
-            const newVal = _.clone(val)
+            const newVal = _.clone(value)
             newVal.splice(k, 1)
             return onChange(newVal)
               // .then(() =>
@@ -195,30 +202,30 @@ function arrayNodes(val, path, onChange) {
   ))
 }
 
-function nullNodes(val, path, onChange) {
+function nullNodes({value, path, onChange}) {
   return [{
     key: 'val',
-    item: val,
+    item: value,
     focusable: false
   }]
 }
 
-function booleanNodes(val, path, onChange) {
+function booleanNodes({value, path, onChange}) {
   return [{
     key: 'val',
-    item: val,
+    item: value,
     handlers: [{
       key: 'enter',
       label: 'toggle',
-      fn: () => onChange(!val)
+      fn: () => onChange(!value)
     }]
   }]
 }
 
-function numberNodes(val, path, onChange) {
+function numberNodes({value, path, onChange}) {
   return [{
     key: 'val',
-    item: val,
+    item: value,
     schema: {
       type: 'number'
     },
@@ -231,10 +238,10 @@ function numberNodes(val, path, onChange) {
   }]
 }
 
-function stringNodes(val, path, onChange) {
+function stringNodes({value, path, onChange}) {
   return [{
     key: 'val',
-    item: val,
+    item: value,
     schema: {
       type: 'string'
     },
