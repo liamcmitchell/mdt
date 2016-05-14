@@ -1,3 +1,11 @@
+/*
+
+Compile and run server, recompiling and restarting on changes.
+
+Compile client and recompile on changes.
+
+*/
+
 var webpack = require('webpack')
 var path = require('path')
 var fs = require('fs')

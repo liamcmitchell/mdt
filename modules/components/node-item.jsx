@@ -84,7 +84,7 @@ class NodeEdit extends Component {
     this.setState({value: event.target.value})
     if (this._isSelect()) {
       this.props.node.onChange(event.target.value)
-      data('/cursor/editing').set(false)
+      this.props.data('/cursor/editing').set(false)
     }
   }
 
