@@ -1,6 +1,17 @@
 import nodeFromValue from './node-from-value'
 
-const sourceUrl = ['file', 'test', 'domains.json']
+const url = ['json', 'file', 'test', 'domains.json']
+const schema = {
+  type: 'array',
+  items: {
+    type: 'object',
+    properties: {
+      name: {type: 'string'},
+      text: {type: 'string'}
+    },
+    required: ['name', 'text']
+  }
+}
 
 export default {
   key: 'domains',
@@ -8,17 +19,18 @@ export default {
   nodes: ({source, path}) =>
     source({
       method: 'OBSERVE',
-      url: sourceUrl
+      url: url
     })
-    .map(contents => {
+    .map(value => {
       return nodeFromValue({
-        value: JSON.parse(contents),
+        value: value,
         path: path,
+        schema: schema,
         onChange: (newValue) => {
           return source({
             method: 'SET',
-            url: sourceUrl,
-            value: JSON.stringify(newValue, null, 2)
+            url: url,
+            value: newValue
           })
         }
       }).nodes

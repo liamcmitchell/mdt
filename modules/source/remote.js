@@ -1,24 +1,30 @@
 import Rx from 'rx'
 import io from 'socket.io-client'
 import sourceMethods from 'source/methods'
+import sourceCache from 'source/cache'
 import urlToString from 'source/url-to-string'
 import req from 'browser-request'
+import _ from 'underscore'
+
+// Cache remotes for seamless source reloading in dev.
+export default _.memoize(remoteUrl => sourceCache(sourceRemote(remoteUrl)))
 
 // Relays requests via websockets for observables and REST for all
 // others.
-export default function sourceRemote(remoteUrl) {
+function sourceRemote(remoteUrl) {
   const subscriptions = {}
   const websocketClient = io(remoteUrl)
   // Maintain a list of urls we are subscribed to on the server.
-  const updateSubscriptions = () =>
+  const updateSubscriptions = _.debounce(() => {
     websocketClient.emit('subscriptions', Object.keys(subscriptions))
+  })
   websocketClient.on('connect', updateSubscriptions)
 
   return sourceMethods({
     OBSERVE: (request, observer) => {
       const url = urlToString(request.url)
 
-      // No subscription count, we rely on being cached by parent.
+      // No subscription count, we rely on being cached.
       subscriptions[url] = true
       updateSubscriptions()
 

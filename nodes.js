@@ -1,8 +1,8 @@
 import nodeSource from 'source/node'
 
 import domainsNode from './nodes/domains'
-import dummyNode from './nodes/dummy'
 import jsonNode from './nodes/json'
+import dummyNode from './nodes/dummy'
 
 import fsNodes from './nodes/fs'
 import fsNodesJson from './nodes/fs-json'
@@ -10,8 +10,8 @@ import fsNodesJson from './nodes/fs-json'
 export default nodeSource({
   nodes: [
     domainsNode,
-    dummyNode,
     jsonNode,
+    dummyNode,
     {
       key: 'local',
       item: 'local',

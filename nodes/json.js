@@ -4,7 +4,7 @@ const sourceUrl = ['file', 'test', 'mdt.json']
 
 export default {
   key: 'json',
-  item: 'mdt.json',
+  item: 'json',
   nodes: ({source}) =>
     source({
       method: 'OBSERVE',
