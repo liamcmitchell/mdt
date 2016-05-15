@@ -1,26 +1,17 @@
-import React from 'react'
-import ReactDOM from 'react-dom'
 import io from 'socket.io-client'
-import Rx from 'rx'
+import render from 'client/render'
 
-var websocketClient = io(document.location.origin)
-
-function render() {
-  ReactDOM.render(
-    React.createElement(require('client-app').default, null),
-    document.getElementById('render-target')
-  )
-}
-
-render()
+render(document.getElementById('render-target'), require('./client-source').default)
 
 if (module.hot) {
   // Allow self to reload if self or uncaught dependencies update.
-  module.hot.accept('client-app', render)
+  module.hot.accept('./client-source', () => {
+    render(document.getElementById('render-target'), require('./client-source').default)
+  })
 
   // Update on code change.
   // Based on webpack/hot/dev-server.js
-  websocketClient.on('client updated', () => {
+  io(document.location.origin).on('client updated', () => {
     module.hot.check(true, (error, disposedModules) => {
       var status = module.hot.status()
       if (error && (status === 'abort' || status === 'fail')) {

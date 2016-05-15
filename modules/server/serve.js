@@ -6,7 +6,8 @@ import chokidar from 'chokidar'
 import Rx from 'rx'
 
 // Serve a source.
-// TODO: Pass in client as observable too.
+// TODO: Are observables really needed?
+// TODO: Pass in client too.
 export default function serve(source$) {
   source$ = Rx.Observable.isObservable(source$) ?
     source$ :

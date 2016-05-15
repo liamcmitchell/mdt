@@ -1,7 +1,7 @@
 import sourceInterface from 'source/interface'
 import sourceRoutes from 'source/routes'
-import fileSource from 'sources/file'
-import dirSource from 'sources/dir'
+import fileSource from 'source/file'
+import dirSource from 'source/dir'
 
 const data = sourceInterface(sourceRoutes({
   file: fileSource,

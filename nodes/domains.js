@@ -1,21 +1,23 @@
 import nodeFromValue from './node-from-value'
 
+const sourceUrl = ['file', 'test', 'domains.json']
+
 export default {
-  key: 'json',
-  item: 'mdt.json',
-  nodes: ({source}) =>
+  key: 'domains',
+  item: 'domains',
+  nodes: ({source, path}) =>
     source({
       method: 'OBSERVE',
-      url: ['file', 'mdt.json']
+      url: sourceUrl
     })
     .map(contents => {
       return nodeFromValue({
         value: JSON.parse(contents),
-        path: ['json'],
+        path: path,
         onChange: (newValue) => {
           return source({
             method: 'SET',
-            url: ['file', 'mdt.json'],
+            url: sourceUrl,
             value: JSON.stringify(newValue, null, 2)
           })
         }

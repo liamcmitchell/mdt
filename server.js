@@ -2,14 +2,14 @@ import serve from 'server/serve'
 import chokidar from 'chokidar'
 import Rx from 'rx'
 
-const source$ = new Rx.BehaviorSubject(require('server-data').default)
+const source$ = new Rx.BehaviorSubject(require('./server-source').default)
 
 serve(source$)
 
 if (module.hot) {
   // Allow app to reload on source change.
-  module.hot.accept('server-data', () => {
-    source$.onNext(require('server-data').default)
+  module.hot.accept('./server-source', () => {
+    source$.onNext(require('./server-source').default)
   })
 
   // Watch and react to changes to self.

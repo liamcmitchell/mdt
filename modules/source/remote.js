@@ -6,7 +6,7 @@ import req from 'browser-request'
 
 // Relays requests via websockets for observables and REST for all
 // others.
-export default function buildRemoteHandler(remoteUrl) {
+export default function sourceRemote(remoteUrl) {
   const subscriptions = {}
   const websocketClient = io(remoteUrl)
   // Maintain a list of urls we are subscribed to on the server.
@@ -31,7 +31,6 @@ export default function buildRemoteHandler(remoteUrl) {
         })
         .subscribe(observer)
     },
-    // H
     default: function(request, promise) {
       req({
         // Uses /data endpoint on server.
