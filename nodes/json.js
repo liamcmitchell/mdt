@@ -1,4 +1,4 @@
-import nodeFromValue from './node-from-value'
+import nodesFromValue from './node-from-value'
 
 const sourceUrl = ['file', 'test', 'mdt.json']
 
@@ -11,7 +11,7 @@ export default {
       url: sourceUrl
     })
     .map(contents => {
-      return nodeFromValue({
+      return nodesFromValue({
         value: JSON.parse(contents),
         path: ['json'],
         onChange: (newValue) => {
@@ -21,6 +21,6 @@ export default {
             value: JSON.stringify(newValue, null, 2)
           })
         }
-      }).nodes
+      })
     })
 }

@@ -1,4 +1,4 @@
-import nodeFromValue from './node-from-value'
+import nodesFromValue from './node-from-value'
 
 const url = ['json', 'file', 'test', 'domains.json']
 const schema = {
@@ -22,7 +22,7 @@ export default {
       url: url
     })
     .map(value => {
-      return nodeFromValue({
+      return nodesFromValue({
         value: value,
         path: path,
         schema: schema,
@@ -33,6 +33,6 @@ export default {
             value: newValue
           })
         }
-      }).nodes
+      })
     })
 }

@@ -1,4 +1,4 @@
-import nodeFromValue from './node-from-value'
+import nodesFromValue from './node-from-value'
 
 export default function nodes({fsPath, nodePath}, {source, path}) {
   // To get the path we care about, we replace the base node path with fs path.
@@ -16,10 +16,10 @@ export default function nodes({fsPath, nodePath}, {source, path}) {
             method: 'OBSERVE',
             url: ['file'].concat(path, item.name)
           }).map(value =>
-            nodeFromValue({
+            nodesFromValue({
               value: JSON.parse(value),
               path: ['TODO']
-            }).nodes
+            })
           ) :
           [{
             key: 'content',
