@@ -5,26 +5,28 @@ import $ from 'lib/rx'
 import _ from 'underscore'
 import { isFocusable } from 'lib/node-helpers'
 import validate from 'lib/validate'
+import {withIO} from 'react-io'
 
 class NodeEdit extends Component {
   constructor(props, context) {
     super(props, context)
 
     this.state = {
-      value: props.node.value || props.value
+      value: props.node.hasOwnProperty('value') ?
+        props.node.value :
+        props.value
     }
   }
 
   render() {
-    const props = this.props
-    const data = props.data
-    const schema = props.node.schema || {}
+    const {node, styles} = this.props
+    const schema = node.schema || {}
 
     return this._isSelect() ?
       <div
         style={{
-          padding: props.styles.padding,
-          backgroundColor: props.styles.backgroundHighlightColor
+          padding: styles.padding,
+          backgroundColor: styles.backgroundHighlightColor
         }}
       >
         <select
@@ -48,11 +50,11 @@ class NodeEdit extends Component {
         onKeyDown={this._handleKeyDown.bind(this)}
         ref={(c) => this.input = c}
         style={{
-          padding: props.styles.padding,
+          padding: styles.padding,
           color: this._isValid() ?
-            props.styles.primaryColor :
-            props.styles.red,
-          backgroundColor: props.styles.backgroundHighlightColor
+            styles.primaryColor :
+            styles.red,
+          backgroundColor: styles.backgroundHighlightColor
         }}
       />
   }
@@ -84,7 +86,7 @@ class NodeEdit extends Component {
     this.setState({value: event.target.value})
     if (this._isSelect()) {
       this.props.node.onChange(event.target.value)
-      this.props.data('/cursor/editing').set(false)
+      this.props.io('/cursor/editing').set(false)
     }
   }
 
@@ -107,33 +109,31 @@ class NodeEdit extends Component {
 
 class NodeView extends Component {
   render() {
-    const props = this.props
-    const data = props.data
-    const item = props.item
-    const focusable = isFocusable(props.node)
+    const {io, item, isFocused, path, styles, isOnPath, node} = this.props
+    const focusable = isFocusable(node)
 
     return <Focusable
       el='div'
-      focused={props.isFocused}
-      href={'/' + props.path.join('/')}
+      focused={isFocused}
+      href={'/' + path.join('/')}
       style={{
         cursor: focusable ? 'pointer' : null,
         display: 'block',
         textDecoration: 'none',
-        color: props.item instanceof Error ?
-          props.styles.red :
+        color: item instanceof Error ?
+          styles.red :
           focusable ?
-            props.styles.primaryColor :
-            props.styles.secondaryColor,
-        padding: props.styles.padding,
+            styles.primaryColor :
+            styles.secondaryColor,
+        padding: styles.padding,
         whiteSpace: 'pre',
-        backgroundColor: props.isOnPath ?
-          props.styles.backgroundHighlightColor :
+        backgroundColor: isOnPath ?
+          styles.backgroundHighlightColor :
           null
       }}
       onClick={(e) => {
         if (focusable) {
-          data('/cursor/path').set(props.path)
+          io('/cursor/path').set(path)
         }
         e.preventDefault()
       }}
@@ -149,7 +149,7 @@ class NodeView extends Component {
   }
 }
 
-export default class NodeItem extends Component {
+class NodeItem extends Component {
   static propTypes = {
     path: PropTypes.array.isRequired,
     styles: PropTypes.object.isRequired,
@@ -161,20 +161,19 @@ export default class NodeItem extends Component {
   }
 
   render() {
-    const props = this.props
-    const data = props.data
+    const {io, path, node, styles} = this.props
 
-    const path$ = data('/cursor/path').observable()
+    const cursorPath$ = io('/cursor/path').observable()
 
-    const isFocused$ = path$
-      .map(path => _.isEqual(path, props.path))
+    const isFocused$ = cursorPath$
+      .map(path => _.isEqual(path, path))
       .distinctUntilChanged()
 
-    const isOnPath$ = path$
-      .map(path => _.isEqual(path.slice(0, props.path.length), props.path))
+    const isOnPath$ = cursorPath$
+      .map(cursorPath => _.isEqual(cursorPath.slice(0, path.length), path))
       .distinctUntilChanged()
 
-    const item$ = $(props.node.item)
+    const item$ = $(node.item)
 
     return <Combinator>
       <div
@@ -185,17 +184,17 @@ export default class NodeItem extends Component {
         {$.combineLatest([
           isOnPath$,
           isFocused$,
-          data('/cursor/editing'),
+          io('/cursor/editing'),
           item$
         ], (isOnPath, isFocused, editing, item) => {
 
           // Edit mode
           if (isFocused && editing) {
             return <NodeEdit
-              data={data}
-              styles={props.styles}
-              path={props.path}
-              node={props.node}
+              io={io}
+              styles={styles}
+              path={path}
+              node={node}
               value={item}
             />
           }
@@ -203,10 +202,10 @@ export default class NodeItem extends Component {
           // View mode
           else {
             return <NodeView
-              data={data}
-              styles={props.styles}
-              path={props.path}
-              node={props.node}
+              io={io}
+              styles={styles}
+              path={path}
+              node={node}
               item={item}
               isOnPath={isOnPath}
               isFocused={isFocused}
@@ -217,3 +216,5 @@ export default class NodeItem extends Component {
     </Combinator>
   }
 }
+
+export default withIO(NodeItem)

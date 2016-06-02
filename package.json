@@ -26,6 +26,7 @@
     "colors": "^1.1.2",
     "express": "^4.13.3",
     "history": "^1.13.0",
+    "hoist-non-react-statics": "^1.0.6",
     "immutable": "^3.7.5",
     "jsonschema": "^1.1.0",
     "keycode": "^2.1.0",

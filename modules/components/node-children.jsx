@@ -4,28 +4,28 @@ import NodeItem from 'components/node-item'
 import _ from 'underscore'
 import $ from 'lib/rx'
 import { nodeWithKey } from 'lib/node-helpers'
+import {withIO} from 'react-io'
 
-export default class NodeChildren extends Component {
+class NodeChildren extends Component {
 
   shouldComponentUpdate(nextProps, nextState) {
     return !_.isEqual(nextProps, this.props) || !_.isEqual(nextState, this.state)
   }
 
   render() {
-    const props = this.props
-    const data = props.data
+    const {io, selected, selectedIsFocused, path, styles} = this.props
 
-    const isOptions = !props.selected
-    const isFocused = props.selectedIsFocused
-    const isCompact = props.selected && !isFocused
+    const isOptions = !selected
+    const isFocused = selectedIsFocused
+    const isCompact = selected && !isFocused
 
-    const nodes$ = data(['node', 'nodes'].concat(props.path))
+    const nodes$ = io(['node', 'nodes'].concat(path))
       .map(nodes => {
         // If the next node isn't there, add a placeholder for error.
-        if (props.selected && !nodes.find(nodeWithKey(props.selected))) {
+        if (selected && !nodes.find(nodeWithKey(selected))) {
           const dummy = {
-            key: props.selected,
-            item: new Error(props.selected + ' not found')
+            key: selected,
+            item: new Error(selected + ' not found')
           }
           nodes = [dummy].concat(nodes)
         }
@@ -35,7 +35,7 @@ export default class NodeChildren extends Component {
     return <Combinator>
       <div
         style={{
-          backgroundColor: props.styles.backgroundColor,
+          backgroundColor: styles.backgroundColor,
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100%',
@@ -51,20 +51,21 @@ export default class NodeChildren extends Component {
           cursor: isCompact ? 'pointer' : null
         }}
         onClick={isCompact ?
-          () => data('/cursor/path').set(props.path) :
+          () => io('/cursor/path').set(path) :
           null
         }
       >
         {nodes$.map(nodes => nodes.map(node => {
           return <NodeItem
             key={node.key}
-            data={data}
-            path={props.path.concat(node.key)}
+            path={path.concat(node.key)}
             node={node}
-            styles={props.styles}
+            styles={styles}
           />
         }))}
       </div>
     </Combinator>
   }
 }
+
+export default withIO(NodeChildren)

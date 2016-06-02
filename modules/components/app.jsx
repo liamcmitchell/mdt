@@ -1,4 +1,7 @@
-import React, { Component } from 'react'
+import React, {Component} from 'react'
+import {IOProvider} from 'react-io'
+import NodeUI from 'components/node-ui'
+import colors from 'lib/colors'
 
 class App extends Component {
   componentWillMount() {
@@ -16,7 +19,13 @@ class App extends Component {
   }
 
   render() {
-    return this.props.children
+    return <IOProvider io={this.props.io}>
+      <NodeUI
+        styles={Object.assign({
+          padding: '10px 20px'
+        }, colors.solarizedDark)}
+      />
+    </IOProvider>
   }
 }
 

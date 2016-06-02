@@ -8,13 +8,14 @@ import $ from 'lib/rx'
 import { isFocusable, nodeWithKey } from 'lib/node-helpers'
 import wrapFn from 'lib/wrapFn'
 import getLoopingArrayItem from 'lib/getLoopingArrayItem'
+import {withIO} from 'react-io' 
 
 // Turn path into array of paths including root (empty) and original.
 function pathToSubPaths(path) {
   return [[]].concat(path.map((v, i) => path.slice(0, i + 1)))
 }
 
-export default class NodeUI extends Component {
+class NodeUI extends Component {
   static propTypes = {
     // Passed on to item, content & child nodes unless overridden.
     styles: React.PropTypes.object
@@ -23,25 +24,24 @@ export default class NodeUI extends Component {
   render() {
     // Used to record last child visited for each node.
     this.lastChildStore = this.lastChildStore || {}
-    const props = this.props
-    const data = props.data
+    const {io, styles} = this.props
 
     function setPath(path) {
-      data('/cursor/path').set(path)
+      io('/cursor/path').set(path)
     }
 
-    const path$ = data('/cursor/path').observable()
+    const path$ = io('/cursor/path').observable()
 
     const navHandlers$ = $.combineLatest([
 
       // Edit
       path$
-        .flatMapLatest(path => data(['node', 'node'].concat(path)))
+        .flatMapLatest(path => io(['node', 'node'].concat(path)))
         .map(node => {
           return node.onChange ? {
             key: 'enter',
             label: 'edit',
-            fn: () => data('/cursor/editing').set(true)
+            fn: () => io('/cursor/editing').set(true)
           } : null
         }),
 
@@ -56,7 +56,7 @@ export default class NodeUI extends Component {
       $.combineLatest({
         path: path$,
         siblings: path$.flatMapLatest(path =>
-          data(['node', 'nodes'].concat(path.slice(0, -1)))
+          io(['node', 'nodes'].concat(path.slice(0, -1)))
         )
       }, ({path, siblings}) => {
         // Handler is used by both up & down.
@@ -86,7 +86,7 @@ export default class NodeUI extends Component {
       $.combineLatest({
         path: path$,
         children: path$
-          .flatMapLatest(path => data(['node', 'nodes'].concat(path)))
+          .flatMapLatest(path => io(['node', 'nodes'].concat(path)))
       }, ({path, children}) => {
         // First save the current path.
         path.forEach((key, i) => {
@@ -109,7 +109,7 @@ export default class NodeUI extends Component {
 
       // Node
       path$
-        .flatMapLatest(path => data(['node', 'handlers'].concat(path)))
+        .flatMapLatest(path => io(['node', 'handlers'].concat(path)))
 
     ])
 
@@ -118,19 +118,19 @@ export default class NodeUI extends Component {
       $({
         key: 'esc',
         label: 'cancel',
-        fn: () => data('/cursor/editing').set(false)
+        fn: () => io('/cursor/editing').set(false)
       }),
 
       // Save
       $({
         key: 'enter',
         label: 'save',
-        fn: () => data('/cursor/editing').set(false)
+        fn: () => io('/cursor/editing').set(false)
       })
     ])
 
     const handlers$ = $.combineLatest([
-      data('/cursor/editing'),
+      io('/cursor/editing'),
       navHandlers$,
       editHandlers$
     ], (editing, nav, edit) =>
@@ -166,7 +166,7 @@ export default class NodeUI extends Component {
           display: 'flex',
           flexDirection: 'column',
           flex: 1,
-          backgroundColor: props.styles.backgroundColor
+          backgroundColor: styles.backgroundColor
         }}
         onKeyDown={handleKeyDown$}
       >
@@ -181,9 +181,8 @@ export default class NodeUI extends Component {
             pathToSubPaths(path).map((subPath, i) =>
               <NodeChildren
                 key={subPath.join('/')}
-                data={data}
                 path={subPath}
-                styles={props.styles}
+                styles={styles}
                 selected={path[i]}
                 selectedIsFocused={path.length === i + 1}
               />
@@ -195,7 +194,7 @@ export default class NodeUI extends Component {
             display: 'flex',
             flexDirection: 'row',
             flexShrink: 0,
-            backgroundColor: props.styles.backgroundHighlightColor
+            backgroundColor: styles.backgroundHighlightColor
           }}
         >
           {handlers$.map(handlers =>
@@ -206,13 +205,13 @@ export default class NodeUI extends Component {
               <div
                 key={handler.key}
                 style={{
-                  padding: props.styles.padding,
-                  color: props.styles.primaryColor
+                  padding: styles.padding,
+                  color: styles.primaryColor
                 }}
               >
                 <span
                   style={{
-                    backgroundColor: props.styles.backgroundColor,
+                    backgroundColor: styles.backgroundColor,
                     padding: 6,
                     marginRight: 10,
                     borderRadius: 4
@@ -229,3 +228,5 @@ export default class NodeUI extends Component {
     </Combinator>
   }
 }
+
+export default withIO(NodeUI)
