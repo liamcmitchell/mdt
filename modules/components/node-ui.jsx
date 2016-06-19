@@ -30,7 +30,8 @@ class NodeUI extends Component {
       io('/cursor/path').set(path)
     }
 
-    const path$ = io('/cursor/path').observable()
+    // Get prototype methods
+    const path$ = Rx.Observable.merge(io('/cursor/path'))
 
     const navHandlers$ = $.combineLatest([
 

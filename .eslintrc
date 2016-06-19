@@ -4,10 +4,13 @@
     "browser": true,
     "node": true
   },
-  "extends": "eslint:recommended",
+  "plugins": [
+    "react"
+  ],
+  "extends": ["eslint:recommended", "plugin:react/recommended"],
   "rules": {
     semi: [2, "never"],
-    no-unused-vars: 0,
+    no-unused-vars: 1,
     no-console: 0
   }
 }

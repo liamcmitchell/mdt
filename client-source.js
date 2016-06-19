@@ -1,20 +1,20 @@
-import sourceInterface from 'source/interface'
-import sourceRoutes from 'source/routes'
-import sourceAlias from 'source/alias'
-import sourceCache from 'source/cache'
-import sourceRemote from 'source/remote'
-import cursorSource from 'source/cursor'
-import sourceJSON from 'source/json'
+import {routes} from 'react-io'
+import alias from 'react-io/lib/source/alias'
+import sourceJSON from 'react-io/lib/source/json'
+
+import remote from 'source/remote'
+import cursor from 'source/cursor'
+
 import createHistory from 'history/lib/createBrowserHistory'
 import nodeSource from './nodes'
 
-const source = sourceInterface(sourceCache(sourceRoutes({
-  server: sourceRemote(document.location.origin),
-  file: sourceAlias('/server/file'),
-  dir: sourceAlias('/server/dir'),
-  json: sourceJSON,
-  cursor: cursorSource(createHistory()),
-  node: nodeSource
-})))
+const source = routes({
+  '/server': remote(document.location.origin),
+  '/file': alias('/server/file'),
+  '/dir': alias('/server/dir'),
+  '/json': sourceJSON,
+  '/cursor': cursor(createHistory()),
+  '/node': nodeSource
+})
 
 export default source

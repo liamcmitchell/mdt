@@ -19,7 +19,7 @@ class NodeChildren extends Component {
     const isFocused = selectedIsFocused
     const isCompact = selected && !isFocused
 
-    const nodes$ = io(['node', 'nodes'].concat(path))
+    const nodes$ = io(['node', 'nodes'].concat(path)).observable()
       .map(nodes => {
         // If the next node isn't there, add a placeholder for error.
         if (selected && !nodes.find(nodeWithKey(selected))) {

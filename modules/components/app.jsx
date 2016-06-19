@@ -1,7 +1,10 @@
 import React, {Component} from 'react'
-import {IOProvider} from 'react-io'
+import {createIO, IOProvider} from 'react-io'
 import NodeUI from 'components/node-ui'
 import colors from 'lib/colors'
+import source from '../../client-source'
+
+const io = createIO(source)
 
 class App extends Component {
   componentWillMount() {
@@ -19,7 +22,7 @@ class App extends Component {
   }
 
   render() {
-    return <IOProvider io={this.props.io}>
+    return <IOProvider io={io}>
       <NodeUI
         styles={Object.assign({
           padding: '10px 20px'

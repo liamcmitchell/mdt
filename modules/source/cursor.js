@@ -1,5 +1,6 @@
 import Rx from 'rx'
 import _ from 'underscore'
+// Where you left off: react-io now uses strings...
 import sourceMethods from 'source/methods'
 
 // Messy because we are syncing with history API and reseting editing on

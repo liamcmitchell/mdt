@@ -1,5 +1,4 @@
 import sourceMethods from 'source/methods'
-import sourceRoutes from 'source/routes'
 import $ from 'lib/rx'
 
 function hasKey(key) {

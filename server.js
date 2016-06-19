@@ -8,6 +8,7 @@ serve(source$)
 
 if (module.hot) {
   // Allow app to reload on source change.
+  // TODO: There IS a better way to do this.
   module.hot.accept('./server-source', () => {
     source$.onNext(require('./server-source').default)
   })
