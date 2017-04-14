@@ -1,4 +1,4 @@
-import React, { Component, PropTypes } from 'react'
+import React, {Component, PropTypes} from 'react'
 
 // Declarative focused state.
 export default class Focusable extends Component {
@@ -8,13 +8,13 @@ export default class Focusable extends Component {
   }
 
   render() {
-    const El = this.props.el
+    const {el: El, focused, ...props} = this.props
 
     return <El
       ref={this._handleMount.bind(this)}
       onBlur={this._handleBlur.bind(this)}
       tabIndex='-1'
-      {...this.props}
+      {...props}
     />
   }
 

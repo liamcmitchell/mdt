@@ -1,26 +1,21 @@
 import nodesFromValue from './node-from-value'
+import {map} from 'rxjs/operator/map'
 
-const sourceUrl = ['file', 'test', 'mdt.json']
+const url = '/file/test/mdt.json'
 
 export default {
   key: 'json',
   item: 'json',
-  nodes: ({source}) =>
-    source({
-      method: 'OBSERVE',
-      url: sourceUrl
-    })
-    .map(contents => {
-      return nodesFromValue({
+  nodes: ({io}) =>
+    io(url)::map(contents =>
+      nodesFromValue({
         value: JSON.parse(contents),
         path: ['json'],
         onChange: (newValue) => {
-          return source({
-            method: 'SET',
-            url: sourceUrl,
+          return io(url, 'SET', {
             value: JSON.stringify(newValue, null, 2)
           })
         }
       })
-    })
+    )
 }

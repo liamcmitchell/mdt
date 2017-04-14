@@ -7,7 +7,7 @@ ReactDOM.render(<App />, document.getElementById('app'))
 // Update on code change.
 // Based on webpack/hot/dev-server.js
 if (module.hot) {
-  require('socket.io-client')(document.location.origin).on('client updated', () => {
+  require('socket.io-client/socket.io')(document.location.origin).on('client updated', () => {
     module.hot.check(true, (error, disposedModules) => {
       var status = module.hot.status()
       if (error && (status === 'abort' || status === 'fail')) {

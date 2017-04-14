@@ -1,47 +1,51 @@
 import fs from 'fs'
 import chokidar from 'chokidar'
 import open from 'open'
-import sourceMethods from 'source/methods'
-import urlToString from 'source/url-to-string'
+import {methods} from 'url-io'
+import {Observable} from 'rxjs/Observable'
 
-export default sourceMethods({
-  OBSERVE: function(request, observer) {
+export default methods({
+  OBSERVE: function({path}) {
+    return Observable.create(observer => {
+      // Url is relative to project root.
+      const localPath = '.' + path
+
+      // TODO: Read could be shared with connected observable.
+      const read = () => {
+        fs.readFile(localPath, 'utf-8', (error, data) => {
+          if (error) {
+            observer.error(error)
+          }
+          else {
+            observer.next(data)
+          }
+        })
+      }
+      const watcher = chokidar.watch(localPath, {ignoreInitial: true})
+      watcher.on('change', read)
+      watcher.on('unlink', read)
+      watcher.on('error', observer.error.bind(observer))
+      read()
+      // Return dispose function.
+      return watcher.close.bind(watcher)
+    })
+  },
+  OPEN: function({path}) {
     // Url is relative to project root.
-    const url = '.' + urlToString(request.url)
-
-    // TODO: Read could be shared with connected observable.
-    const read = () => {
-      fs.readFile(url, 'utf-8', (error, data) => {
-        if (error) {
-          observer.onError(error)
-        }
-        else {
-          observer.onNext(data)
-        }
+    const localPath = '.' + path
+    open(localPath)
+    return Promise.resolve()
+  },
+  SET: function({path, params: {value}}) {
+    // Url is relative to project root.
+    const localPath = '.' + path
+    return new Promise((resolve, reject) => {
+      fs.writeFile(localPath, value, err => {
+        if (err)
+          reject(err)
+        else
+          resolve()
       })
-    }
-    const watcher = chokidar.watch(url, {ignoreInitial: true})
-    watcher.on('change', read)
-    watcher.on('unlink', read)
-    watcher.on('error', observer.onError.bind(observer))
-    read()
-    // Return dispose function.
-    return watcher.close.bind(watcher)
-  },
-  OPEN: function(request, promise) {
-    // Url is relative to project root.
-    const url = '.' + urlToString(request.url)
-    open(url)
-    promise.resolve()
-  },
-  SET: function(request, promise) {
-    // Url is relative to project root.
-    const url = '.' + urlToString(request.url)
-    fs.writeFile(url, request.value, err => {
-      if (err)
-        promise.reject(err)
-      else
-        promise.resolve()
     })
   }
 })

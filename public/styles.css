@@ -15,10 +15,8 @@ body {
 }
 
 /* Make body 100% height. */
-html, body, #render-target {
+html, body, #app {
   height: 100%;
-}
-#render-target {
   display: flex;
   flex-direction: column;
 }

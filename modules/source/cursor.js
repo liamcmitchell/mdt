@@ -1,71 +1,70 @@
-import Rx from 'rx'
-import _ from 'underscore'
-// Where you left off: react-io now uses strings...
-import sourceMethods from 'source/methods'
+import {methods} from 'url-io'
+import {BehaviorSubject} from 'rxjs/BehaviorSubject'
+import {map} from 'rxjs/operator/map'
+import {distinctUntilChanged} from 'rxjs/operator/distinctUntilChanged'
 
 // Messy because we are syncing with history API and reseting editing on
 // path change.
 export default function createCursorSource(history) {
-  const cursor = new Rx.BehaviorSubject({
-    path: [],
+  const cursor = new BehaviorSubject({
+    path: '',
     editing: false
   })
 
   if (history) {
     // Listen for changes.
     history.listen(({ pathname }) => {
-      const path = _.filter(pathname.split('/'))
-      if (!_.isEqual(path, cursor.getValue().path)) {
+      if (pathname !== cursor.getValue().path) {
         // This path change is coming from user navigation.
-        cursor.onNext({
-          path: path,
+        cursor.next({
+          path: pathname,
           editing: false
         })
       }
     })
     // Update history on change.
     cursor
-      .distinctUntilChanged(c => c.path, _.isEqual)
+      ::distinctUntilChanged(c => c.path)
       .subscribe(c => {
-        history.replaceState(null, '/' + c.path.join('/'))
+        history.replaceState(null, c.path)
       })
   }
 
-  return sourceMethods({
-    OBSERVE: function(request, observer) {
-      if (request.url[0] === undefined) {
-        return cursor.subscribe(observer)
+  return methods({
+    OBSERVE: function({path}) {
+      if (path === '') {
+        return cursor
       }
-      else if (request.url[0] === 'path') {
-        return cursor.map(c => c.path).subscribe(observer)
+      else if (path === '/path') {
+        return cursor::map(c => c.path)
       }
-      else if (request.url[0] === 'editing') {
-        return cursor.map(c => c.editing).subscribe(observer)
+      else if (path === '/editing') {
+        return cursor::map(c => c.editing)
       }
       else {
         throw new Error('Url not supported')
       }
     },
-    SET: function(request, promise) {
-      if (request.url[0] === undefined) {
-        cursor.onNext(request.value)
+    SET: function({path, params: {value}}) {
+      if (path === '') {
+        cursor.next(value)
       }
-      else if (request.url[0] === 'path') {
-        cursor.onNext({
-          path: request.value,
+      else if (path === '/path') {
+        cursor.next({
+          path: value,
           editing: false
         })
       }
-      else if (request.url[0] === 'editing') {
-        cursor.onNext({
+      else if (path === '/editing') {
+        cursor.next({
           path: cursor.getValue().path,
-          editing: request.value
+          editing: value
         })
       }
       else {
-        throw new Error('Url not supported')
+        throw new Error('Path not supported')
       }
-      promise.resolve()
+      return Promise.resolve()
     } 
   })
 }

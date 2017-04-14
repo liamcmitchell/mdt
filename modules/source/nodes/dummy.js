@@ -11,14 +11,13 @@ const node = {
   nodes() {
     if (this.depth < 100) {
       var newDepth = this.depth + 1
-      return ["one", "two", "three", "four", "five"].map(text =>
-        Object.assign({}, node, {
-          key: text,
-          depth: newDepth,
-          item: text,
-          focusable: text === "five" ? false : true
-        })
-      )
+      return ["one", "two", "three", "four", "five"].map(text => ({
+        ...node,
+        key: text,
+        depth: newDepth,
+        item: text,
+        focusable: text === "five" ? false : true
+      }))
     }
     else {
       return []

@@ -1,10 +1,10 @@
 import fs from 'fs'
-import { basename } from 'path'
+import {basename} from 'path'
 import async from 'async'
 import chokidar from 'chokidar'
-import sourceMethods from 'source/methods'
-import urlToString from 'source/url-to-string'
-import { sortBy } from 'underscore'
+import {methods} from 'url-io'
+import sortBy from 'lodash/sortBy'
+import {Observable} from 'rxjs/Observable'
 
 function stat(path, cb) {
   fs.stat(path, (err, stats) => {
@@ -29,27 +29,29 @@ function ls(path, cb) {
   })
 }
 
-export default sourceMethods({
-  OBSERVE: function(request, observer) {
-    // Url is relative to project root.
-    const url = '.' + urlToString(request.url)
-    // TODO: Read could be shared with connected observable.
-    const read = () => {
-      ls(url, (err, items) => {
-        if (err)
-          observer.onError(err)
-        else
-          observer.onNext(sortBy(sortBy(items, 'name'), 'isFile'))
-      })
-    }
-    const watcher = chokidar.watch(url, {ignoreInitial: true})
-    watcher.on('add', read)
-    watcher.on('unlink', read)
-    watcher.on('addDir', read)
-    watcher.on('unlinkDir', read)
-    watcher.on('error', observer.onError.bind(observer))
-    read()
-    // Return dispose function.
-    return watcher.close.bind(watcher)
+export default methods({
+  OBSERVE: function({path}) {
+    return Observable.create(observer => {
+      // Url is relative to project root.
+      const localPath = '.' + path
+      // TODO: Read could be shared with connected observable.
+      const read = () => {
+        ls(localPath, (err, items) => {
+          if (err)
+            observer.error(err)
+          else
+            observer.next(sortBy(items, ['name', 'isFile']))
+        })
+      }
+      const watcher = chokidar.watch(localPath, {ignoreInitial: true})
+      watcher.on('add', read)
+      watcher.on('unlink', read)
+      watcher.on('addDir', read)
+      watcher.on('unlinkDir', read)
+      watcher.on('error', observer.error.bind(observer))
+      read()
+      // Return dispose function.
+      return watcher.close.bind(watcher)
+    })
   }
 })

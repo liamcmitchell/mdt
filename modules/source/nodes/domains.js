@@ -1,6 +1,7 @@
 import nodesFromValue from './node-from-value'
+import {map} from 'rxjs/operator/map'
 
-const url = ['json', 'file', 'test', 'domains.json']
+const url = '/json/file/test/domains.json'
 const schema = {
   type: 'array',
   items: {
@@ -16,23 +17,17 @@ const schema = {
 export default {
   key: 'domains',
   item: 'domains',
-  nodes: ({source, path}) =>
-    source({
-      method: 'OBSERVE',
-      url: url
-    })
-    .map(value => {
-      return nodesFromValue({
+  nodes: ({io, path}) =>
+    io(url)::map(value =>
+      nodesFromValue({
         value: value,
         path: path,
         schema: schema,
         onChange: (newValue) => {
-          return source({
-            method: 'SET',
-            url: url,
+          return io(url, 'SET', {
             value: newValue
           })
         }
       })
-    })
+    )
 }

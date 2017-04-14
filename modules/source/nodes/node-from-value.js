@@ -1,31 +1,44 @@
-import _ from 'underscore'
-import Rx from 'rx'
-
-const flatFilter = _.compose(_.filter, _.flatten)
+import clone from 'lodash/clone'
+import filter from 'lodash/filter'
+import flattenDeep from 'lodash/flattenDeep'
+import isArray from 'lodash/isArray'
+import isObject from 'lodash/isObject'
+import isNull from 'lodash/isNull'
+import isBoolean from 'lodash/isBoolean'
+import isNumber from 'lodash/isNumber'
+import isString from 'lodash/isString'
+import keys from 'lodash/keys'
+import map from 'lodash/map'
+import omit from 'lodash/omit'
+import toPairs from 'lodash/toPairs'
+import fromPairs from 'lodash/fromPairs'
+import indexOf from 'lodash/indexOf'
 
 function getType(value) {
   return (
-    _.isArray(value) ? 'array' :
-    _.isObject(value) ? 'object' :
-    _.isNull(value) ? 'null' :
-    _.isBoolean(value) ? 'boolean' :
-    _.isNumber(value) ? 'number' :
-    _.isString(value) ? 'string' :
+    isArray(value) ? 'array' :
+    isObject(value) ? 'object' :
+    isNull(value) ? 'null' :
+    isBoolean(value) ? 'boolean' :
+    isNumber(value) ? 'number' :
+    isString(value) ? 'string' :
     'unknown'
   )
 }
 
-export default function nodesFromValue({value, schema, path, onChange}) {
+export default function nodesFromValue(props) {
+  const {value} = props
+
   if (typeof value === 'function') {
     throw new Error("Functions can't be represented as nodes")
   }
 
   const nodesFn = TYPES[getType(value)].nodes
 
-  return flatFilter([
-    typeNode({value, schema, path, onChange}),
-    nodesFn({value, schema, path, onChange})
-  ])
+  return filter(flattenDeep([
+    typeNode(props),
+    nodesFn(props)
+  ]))
 }
 
 function newValueFromSchema(schema) {
@@ -34,9 +47,9 @@ function newValueFromSchema(schema) {
 
 function schemaTypes(schema) {
   if (!schema || !schema.type) {
-    return _.keys(TYPES)
+    return keys(TYPES)
   }
-  else if (_.isString(schema.type)) {
+  else if (isString(schema.type)) {
     return [schema.type]
   }
   else {
@@ -52,8 +65,8 @@ function typeNode({value, schema, path, onChange}) {
   return {
     // Object property can be 'type'. Better solution is to namespace all keys
     // but I want to avoid this if possible.
-    key: _.isObject(value) && !_.isArray(value) ?
-      uniqueString('type', _.keys(value)) :
+    key: isObject(value) && !isArray(value) ?
+      uniqueString('type', keys(value)) :
       'type',
     value: getType(value),
     item: '<' + getType(value) + '>',
@@ -132,7 +145,7 @@ const TYPES = {
     new: () => [],
     nodes: ({value, schema, path, onChange}) => {
       return [
-        _.map(value, itemNode.bind(null, {value, schema, path, onChange})),
+        map(value, itemNode.bind(null, {value, schema, path, onChange})),
         createItemNode({value, schema, path, onChange})
       ]
     }
@@ -141,7 +154,7 @@ const TYPES = {
     new: () => ({}),
     nodes: ({value, schema, path, onChange}) => {
       return [
-        _.map(value, propertyNode.bind(null, {value, schema, path, onChange})),
+        map(value, propertyNode.bind(null, {value, schema, path, onChange})),
         createPropertyNode({value, schema, path, onChange})
       ]
     }
@@ -162,7 +175,7 @@ function itemNode({value, schema, path, onChange}, v, k) {
     },
     onChange: newK => {
       if (newK !== k) {
-        const newVal = _.clone(value)
+        const newVal = clone(value)
         newVal.splice(k, 1)
         newVal.splice(newK, 0, v)
         return onChange(newVal)
@@ -179,7 +192,7 @@ function itemNode({value, schema, path, onChange}, v, k) {
         key: 'backspace',
         label: 'delete item',
         fn: () => {
-          const newVal = _.clone(value)
+          const newVal = clone(value)
           newVal.splice(k, 1)
           return onChange(newVal)
             // .then(() =>
@@ -217,7 +230,7 @@ function createItemNode({value, schema, path, onChange}) {
 function itemSchema({value, schema, path, onChange}, k) {
   return !schema ?
     null :
-    _.isObject(schema.items) && !_.isArray(schema.items) ?
+    isObject(schema.items) && !isArray(schema.items) ?
       schema.items :
       // TODO: Handle tuple schema.
       null
@@ -229,7 +242,7 @@ function createItemAllowed({value, schema, path, onChange}) {
   }
 
   // Tuple
-  if (schema && _.isArray(schema.items) && schema.additionalItems === false) {
+  if (schema && isArray(schema.items) && schema.additionalItems === false) {
     return false
   }
 
@@ -267,7 +280,7 @@ function propertyNode({value, schema, path, onChange}, v, k) {
     },
     onChange: newK => {
       // Try to preserve key order.
-      return onChange(_.object(_.pairs(value).map(pair =>
+      return onChange(fromPairs(toPairs(value).map(pair =>
         pair[0] === k ? [newK, pair[1]] : pair
       )))
       // Move to new path after making change.
@@ -279,11 +292,11 @@ function propertyNode({value, schema, path, onChange}, v, k) {
         key: 'backspace',
         label: 'delete property',
         fn: () => {
-          const index = _.indexOf(_.keys(value), k)
-          const newVal = _.omit(value, k)
-          const newKeys = _.keys(newVal)
+          const index = indexOf(keys(value), k)
+          const newVal = omit(value, k)
+          const newKeys = keys(newVal)
           onChange(newVal)
-          // .then(() => data('/cursor/path').set(path.concat(newKeys[index] || _.last(newKeys))))
+          // .then(() => data('/cursor/path').set(path.concat(newKeys[index] || last(newKeys))))
         }
       } : null
     ],
@@ -292,7 +305,10 @@ function propertyNode({value, schema, path, onChange}, v, k) {
       schema: propertySchema({value, schema, path, onChange}, k),
       path: path.concat(k),
       onChange: newV =>
-        onChange(Object.assign(_.clone(value), _.object([k], [newV])))
+        onChange({
+          ...value,
+          [k]: newV
+        })
     })
   }
 }
@@ -303,7 +319,7 @@ function createPropertyNode({value, schema, path, onChange}) {
   }
 
   return {
-    key: uniqueString('new', _.keys(value)),
+    key: uniqueString('new', keys(value)),
     item: '+',
     value: '',
     schema: {
@@ -314,7 +330,10 @@ function createPropertyNode({value, schema, path, onChange}) {
       // Get value for new property from schema.
       const newV = newValueFromSchema(propertySchema({value, schema, path, onChange}, newK))
 
-      return onChange(Object.assign(_.clone(value), _.object([newK], [newV])))
+      return onChange({
+        ...value,
+        [newK]: newV
+      })
         // .then(() => {
         //   data('/cursor/path').set(path.concat(newK))
         //   return data('/cursor/editing').set(true)
@@ -329,7 +348,7 @@ function propertySchema({value, schema, path, onChange}, k) {
     null :
     schema.properties && schema.properties.hasOwnProperty(k) ?
       schema.properties[k] :
-      _.isObject(schema.additionalProperties) ?
+      isObject(schema.additionalProperties) ?
         schema.additionalProperties :
         null
 }
@@ -364,7 +383,7 @@ function createPropertyHandler({value, schema, path, onChange}) {
       // TODO: Move cursor to new property node.
       console.log('TODO')
       // return data('/cursor').set({
-      //   path: path.concat(uniqueString('new', _.keys(value))),
+      //   path: path.concat(uniqueString('new', keys(value))),
       //   editing: true
       // })
     }

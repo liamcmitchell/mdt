@@ -1,5 +1,8 @@
-import sourceMethods from 'source/methods'
-import $ from 'lib/rx'
+import {paths, methods} from 'url-io'
+import ensureObservable from 'lib/ensureObservable'
+import {of} from 'rxjs/observable/of'
+import {map} from 'rxjs/operator/map'
+import {switchMap} from 'rxjs/operator/switchMap'
 
 function hasKey(key) {
   return function(node) {
@@ -13,54 +16,48 @@ const NODE_DEFAULTS = {
 }
 
 export default function nodeSource(root) {
-  return sourceMethods({
-    OBSERVE: function(request, observer) {
-      const { url, source } = request
-      const property = url[0]
-      const path = url.slice(1)
+  return paths({
+    '/node': methods({
+      OBSERVE: ({path, io}) => {
+        const pathPieces = path.split('/').filter(v => !!v)
 
-      if (property === undefined) {
-        throw new Error('Node requires property e.g. node/node or node/item')
-      }
+        // Return root node.
+        if (pathPieces.length === 0) {
+          return of(root)
+        }
 
-      // Return root node.
-      else if (property === 'node' && path.length === 0) {
-        observer.onNext(root)
-      }
-
-      // Return node at path.
-      else if (property === 'node') {
-        const key = path[path.length - 1]
-        return source({
-          method: 'OBSERVE',
-          url: ['node', 'nodes'].concat(path.slice(0, path.length - 1))
-        })
+        // Return node at path.
+        const key = pathPieces[pathPieces.length - 1]
+        const parentUrl = '/node/nodes/' + pathPieces.slice(0, pathPieces.length - 1).join('/')
+        return io(parentUrl)
           // If the node isn't there, return a dummy containing an error message.
-          .map(nodes => nodes.find(hasKey(key)) || {
+          ::map(nodes => nodes.find(hasKey(key)) || {
             key: key,
             item: new Error(key + '" not found')
           })
-          .subscribe(observer)
       }
+    }),
+    '/:property': methods({
+      OBSERVE: ({path, io, property}) => {
+        if (!property) {
+          throw new Error('Node requires property e.g. node/node or node/item')
+        }
 
-      // Return property from node at path.
-      else {
-        return source({
-          method: 'OBSERVE',
-          url: ['node', 'node'].concat(path)
-        })
+        const nodeUrl = `/node/node${path}`
+
+        return io(nodeUrl)
           // Property may resolve to be an observable so we need flatmap.
-          .flatMapLatest(node => $(
+          ::switchMap(node => ensureObservable(
             // Use default if node doesn't have property.
             !node.hasOwnProperty(property) ?
               NODE_DEFAULTS[property] :
               // Resolve fn if needed. Pass source and path.
               typeof node[property] === 'function' ?
-                node[property]({source, path}) :
+                // TODO: This isn't right!!!!!!!
+                node[property]({io, path}) :
                 node[property]
           ))
-          .subscribe(observer)
       }
-    }
+    })
   })
 }

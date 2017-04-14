@@ -29,16 +29,18 @@ const solzrizedAccents = {
 }
 
 export default {
-  solarizedLight: Object.assign({
+  solarizedLight: {
     backgroundColor: solarized.base3,
     backgroundHighlightColor: solarized.base2,
     primaryColor: solarized.base00,
-    secondaryColor: solarized.base1
-  }, solzrizedAccents),
-  solarizedDark: Object.assign({
+    secondaryColor: solarized.base1,
+    ...solzrizedAccents
+  },
+  solarizedDark: {
     backgroundColor: solarized.base03,
     backgroundHighlightColor: solarized.base02,
     primaryColor: solarized.base0,
-    secondaryColor: solarized.base01
-  }, solzrizedAccents)
+    secondaryColor: solarized.base01,
+    ...solzrizedAccents
+  }
 }
