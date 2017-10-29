@@ -19,7 +19,7 @@ const solarized = {
 }
 
 // Limit to 5 colors used in terminals.
-const solzrizedAccents = {
+const solarizedAccents = {
   red: solarized.red,
   green: solarized.green,
   yellow: solarized.yellow,
@@ -34,13 +34,13 @@ export default {
     backgroundHighlightColor: solarized.base2,
     primaryColor: solarized.base00,
     secondaryColor: solarized.base1,
-    ...solzrizedAccents
+    ...solarizedAccents
   },
   solarizedDark: {
     backgroundColor: solarized.base03,
     backgroundHighlightColor: solarized.base02,
     primaryColor: solarized.base0,
     secondaryColor: solarized.base01,
-    ...solzrizedAccents
+    ...solarizedAccents
   }
 }

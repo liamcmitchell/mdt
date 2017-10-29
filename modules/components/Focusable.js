@@ -1,4 +1,5 @@
-import React, {Component, PropTypes} from 'react'
+import React, {Component} from 'react'
+import PropTypes from 'prop-types'
 
 // Declarative focused state.
 export default class Focusable extends Component {
@@ -7,42 +8,53 @@ export default class Focusable extends Component {
     focused: PropTypes.bool
   }
 
-  render() {
-    const {el: El, focused, ...props} = this.props
-
-    return <El
-      ref={this._handleMount.bind(this)}
-      onBlur={this._handleBlur.bind(this)}
-      tabIndex='-1'
-      {...props}
-    />
+  componentDidMount() {
+    this.focus()
   }
 
   componentDidUpdate() {
-    this._focus()
+    this.focus()
   }
 
-  _handleMount(el) {
+  handleRef = el => {
     this.el = el
-    this._focus()
   }
 
-  _focus() {
-    if (this.el && this.props.focused) {
+  hasFocus() {
+    return this.el && this.el.contains(document.activeElement)
+  }
+
+  focus() {
+    if (
+      this.el &&
+      this.props.focused &&
+      !this.hasFocus()
+    ) {
       this.el.focus()
     }
   }
 
-  _handleBlur(event) {
+  handleBlur = () => {
     // If we should be focused, try to recover before updating state.
-    if (this.props.focused && document.activeElement !== this.el) {
+    if (this.props.focused && !this.hasFocus()) {
       // Defer blur handling so we can see what has been focused.
       setTimeout(() => {
         // If we lost it to body, try to recover focus.
         if (this.props.focused && document.activeElement === document.body) {
-          this._focus()
+          this.focus()
         }
       })
     }
+  }
+
+  render() {
+    const {el: El, focused, ...props} = this.props
+
+    return <El
+      ref={this.handleRef}
+      onBlur={this.handleBlur}
+      tabIndex='-1'
+      {...props}
+    />
   }
 }

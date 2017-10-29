@@ -13,6 +13,8 @@ import omit from 'lodash/omit'
 import toPairs from 'lodash/toPairs'
 import fromPairs from 'lodash/fromPairs'
 import indexOf from 'lodash/indexOf'
+import React from 'react'
+import ItemEdit from 'node/ItemEdit'
 
 function getType(value) {
   return (
@@ -26,6 +28,7 @@ function getType(value) {
   )
 }
 
+// Generate nodes to view (and edit) a given value.
 export default function nodesFromValue(props) {
   const {value} = props
 
@@ -33,11 +36,11 @@ export default function nodesFromValue(props) {
     throw new Error("Functions can't be represented as nodes")
   }
 
-  const nodesFn = TYPES[getType(value)].nodes
+  const childrenFn = TYPES[getType(value)].children
 
   return filter(flattenDeep([
     typeNode(props),
-    nodesFn(props)
+    childrenFn(props)
   ]))
 }
 
@@ -57,7 +60,7 @@ function schemaTypes(schema) {
   }
 }
 
-function typeNode({value, schema, path, onChange}) {
+function typeNode({schema, onChange, value}) {
   if (!onChange || schemaTypes(schema).length === 1) {
     return null
   }
@@ -68,12 +71,17 @@ function typeNode({value, schema, path, onChange}) {
     key: isObject(value) && !isArray(value) ?
       uniqueString('type', keys(value)) :
       'type',
-    value: getType(value),
-    item: '<' + getType(value) + '>',
-    schema: {
-      enum: schemaTypes(schema)
-    },
-    onChange: newType => onChange(TYPES[newType].new())
+    handlers: editHandler,
+    item: ({params: {mode}}) =>
+      mode !== 'edit' ?
+        '<' + getType(value) + '>' :
+        <ItemEdit
+          value={getType(value)}
+          schema={{
+            enum: schemaTypes(schema)
+          }}
+          onChange={newType => onChange(TYPES[newType].new())}
+        />,
   }
 }
 
@@ -88,7 +96,7 @@ function uniqueString(string, conflicting) {
 const TYPES = {
   null: {
     new: () => null,
-    nodes: ({value, schema, path, onChange}) => {
+    children: ({value}) => {
       return [{
         key: 'val',
         item: value,
@@ -98,7 +106,7 @@ const TYPES = {
   },
   boolean: {
     new: () => false,
-    nodes: ({value, schema, path, onChange}) => {
+    children: ({value, onChange}) => {
       return [{
         key: 'val',
         item: value,
@@ -112,107 +120,128 @@ const TYPES = {
   },
   number: {
     new: () => 0,
-    nodes: ({value, schema, path, onChange}) => {
+    children: ({value, onChange}) => {
       return [{
         key: 'val',
-        item: value,
-        schema: {
-          type: 'number'
-        },
-        onChange: onChange,
-        handlers: [{
-          key: 'a',
-          label: 'set 0',
-          fn: () => onChange(0)
-        }]
+        item: ({params: {mode}}) =>
+          mode !== 'edit' ?
+            value :
+            <ItemEdit
+              value={value}
+              schema={{
+                type: 'number'
+              }}
+              onChange={onChange}
+            />,
+        handlers: editHandler
       }]
     }
   },
   string: {
     new: () => '',
-    nodes: ({value, schema, path, onChange}) => {
+    children: ({value, onChange}) => {
       return [{
         key: 'val',
-        item: value,
-        schema: {
-          type: 'string'
-        },
-        onChange: onChange
+        item: ({params: {mode}}) =>
+          mode !== 'edit' ?
+            value :
+            <ItemEdit
+              value={value}
+              schema={{
+                type: 'string'
+              }}
+              onChange={onChange}
+            />,
+        handlers: editHandler
       }]
     }
   },
   array: {
     new: () => [],
-    nodes: ({value, schema, path, onChange}) => {
+    children: (props) => {
+      const {value} = props
+
       return [
-        map(value, itemNode.bind(null, {value, schema, path, onChange})),
-        createItemNode({value, schema, path, onChange})
+        map(value, itemNode.bind(null, props)),
+        createItemNode(props)
       ]
     }
   },
   object: {
     new: () => ({}),
-    nodes: ({value, schema, path, onChange}) => {
+    children: (props) => {
+      const {value} = props
+
       return [
-        map(value, propertyNode.bind(null, {value, schema, path, onChange})),
-        createPropertyNode({value, schema, path, onChange})
+        map(value, propertyNode.bind(null, props)),
+        createPropertyNode(props)
       ]
     }
   }
 }
 
 // Array item.
-function itemNode({value, schema, path, onChange}, v, k) {
+function itemNode(props, v, k) {
+  const {value, onChange} = props
   return {
     key: k.toString(),
-    item: k,
-    // Allow editing index.
-    schema: {
-      type: 'number',
-      minimum: 0,
-      maximum: value.length - 1,
-      multipleOf: 1
-    },
-    onChange: newK => {
-      if (newK !== k) {
-        const newVal = clone(value)
-        newVal.splice(k, 1)
-        newVal.splice(newK, 0, v)
-        return onChange(newVal)
-          // .then(() => data('/cursor/path').set(path.concat(newK)))
+    item: ({params: {mode}}) =>
+      mode !== 'edit' ?
+        k :
+        // Allow editing index.
+        <ItemEdit
+          value={k}
+          schema={{
+            type: 'number',
+            minimum: 0,
+            maximum: value.length - 1,
+            multipleOf: 1
+          }}
+          onChange={newK => {
+            if (newK !== k) {
+              const newVal = clone(value)
+              newVal.splice(k, 1)
+              newVal.splice(newK, 0, v)
+              return onChange(newVal)
+            }
+          }}
+        />,
+    handlers: props => {
+      const {params: {mode}} = props
+
+      if (!mode) {
+        return editHandler(props).concat([
+          createItemAllowed(props) ? {
+            key: 'n',
+            label: 'new item',
+            fn: createItem.bind(null, props)
+          } : null,
+          deleteItemAllowed(props, k) ? {
+            key: 'backspace',
+            label: 'delete item',
+            fn: () => {
+              const newVal = clone(value)
+              newVal.splice(k, 1)
+              return onChange(newVal)
+                // .then(() =>
+                //   data('/cursor/path').set(path.concat(newVal.length === k ? k - 1 : k))
+                // )
+            }
+          } : null
+        ])
       }
     },
-    handlers: [
-      createItemAllowed({value, schema, path, onChange}) ? {
-        key: 'n',
-        label: 'new item',
-        fn: createItem.bind(null, {value, schema, path, onChange})
-      } : null,
-      deleteItemAllowed({value, schema, path, onChange}, k) ? {
-        key: 'backspace',
-        label: 'delete item',
-        fn: () => {
-          const newVal = clone(value)
-          newVal.splice(k, 1)
-          return onChange(newVal)
-            // .then(() =>
-            //   data('/cursor/path').set(path.concat(newVal.length === k ? k - 1 : k))
-            // )
-        }
-      } : null
-    ],
-    nodes: nodesFromValue({
+    children: nodesFromValue({
       value: v,
-      schema: itemSchema({value, schema, path, onChange}, k),
-      path: path.concat(k),
+      schema: itemSchema(props, k),
       onChange: newV =>
         onChange(value.map((oldV, oldK) => oldK === k ? newV : oldV))
     })
   }
 }
 
-function createItemNode({value, schema, path, onChange}) {
-  if (!createItemAllowed({value, schema, path, onChange})) {
+function createItemNode(props) {
+  if (!createItemAllowed(props)) {
     return null
   }
 
@@ -222,12 +251,14 @@ function createItemNode({value, schema, path, onChange}) {
     handlers: [{
       key: 'enter',
       label: 'new item',
-      fn: createItem.bind(null, {value, schema, path, onChange})
+      fn: createItem.bind(null, props)
     }]
   }
 }
 
-function itemSchema({value, schema, path, onChange}, k) {
+function itemSchema(props, k) {
+  const {schema} = props
+
   return !schema ?
     null :
     isObject(schema.items) && !isArray(schema.items) ?
@@ -236,7 +267,9 @@ function itemSchema({value, schema, path, onChange}, k) {
       null
 }
 
-function createItemAllowed({value, schema, path, onChange}) {
+function createItemAllowed(props) {
+  const {onChange, schema} = props
+
   if (!onChange) {
     return false
   }
@@ -249,20 +282,26 @@ function createItemAllowed({value, schema, path, onChange}) {
   return true
 }
 
-function deleteItemAllowed({value, schema, path, onChange}, k) {
+function deleteItemAllowed(props, k) {
+  const {onChange} = props
+
   // TODO: Observe tuple, min & max restraints.
   return !!onChange
 }
 
-function createItem({value, schema, path, onChange}) {
+function createItem(props) {
+  const {value, onChange} = props
+
   // Get type of new item from schema.
-  const newItem = newValueFromSchema(itemSchema({value, schema, path, onChange}, value.length))
+  const newItem = newValueFromSchema(itemSchema(props, value.length))
 
   return onChange(value.concat([newItem]))
     // .then(() => data('/cursor/path').set(path.concat(value.length)))
 }
 
-function propertyNode({value, schema, path, onChange}, v, k) {
+function propertyNode(props, v, k) {
+  const {value, onChange} = props
+
   return {
     key: k.toString(),
     item: k.toString(),
@@ -287,8 +326,8 @@ function propertyNode({value, schema, path, onChange}, v, k) {
       // .then(() => data('/cursor/path').set(path.concat(newK)))
     },
     handlers: [
-      createPropertyHandler({value, schema, path, onChange}),
-      deletePropertyAllowed({value, schema, path, onChange}, k) ? {
+      createPropertyHandler(props),
+      deletePropertyAllowed(props, k) ? {
         key: 'backspace',
         label: 'delete property',
         fn: () => {
@@ -300,10 +339,9 @@ function propertyNode({value, schema, path, onChange}, v, k) {
         }
       } : null
     ],
-    nodes: nodesFromValue({
+    children: nodesFromValue({
       value: v,
-      schema: propertySchema({value, schema, path, onChange}, k),
-      path: path.concat(k),
+      schema: propertySchema(props, k),
       onChange: newV =>
         onChange({
           ...value,
@@ -313,8 +351,10 @@ function propertyNode({value, schema, path, onChange}, v, k) {
   }
 }
 
-function createPropertyNode({value, schema, path, onChange}) {
-  if (!createPropertyAllowed({value, schema, path, onChange})) {
+function createPropertyNode(props) {
+  const {value, onChange} = props
+
+  if (!createPropertyAllowed(props)) {
     return null
   }
 
@@ -328,7 +368,7 @@ function createPropertyNode({value, schema, path, onChange}) {
     },
     onChange: newK => {
       // Get value for new property from schema.
-      const newV = newValueFromSchema(propertySchema({value, schema, path, onChange}, newK))
+      const newV = newValueFromSchema(propertySchema(props, newK))
 
       return onChange({
         ...value,
@@ -342,7 +382,9 @@ function createPropertyNode({value, schema, path, onChange}) {
   }
 }
 
-function propertySchema({value, schema, path, onChange}, k) {
+function propertySchema(props, k) {
+  const {schema} = props
+
   // TODO: Pattern properties
   return !schema ?
     null :
@@ -353,7 +395,9 @@ function propertySchema({value, schema, path, onChange}, k) {
         null
 }
 
-function createPropertyAllowed({value, schema, path, onChange}) {
+function createPropertyAllowed(props) {
+  const {schema, onChange} = props
+
   return onChange && (
     schema ?
       schema.additionalProperties !== false :
@@ -361,7 +405,9 @@ function createPropertyAllowed({value, schema, path, onChange}) {
   )
 }
 
-function deletePropertyAllowed({value, schema, path, onChange}, k) {
+function deletePropertyAllowed(props, k) {
+  const {schema, onChange} = props
+
   // TODO: Observe min/max.
   return onChange && (
     schema ?
@@ -371,8 +417,8 @@ function deletePropertyAllowed({value, schema, path, onChange}, k) {
   )
 }
 
-function createPropertyHandler({value, schema, path, onChange}) {
-  if (!createPropertyAllowed({value, schema, path, onChange})) {
+function createPropertyHandler(props) {
+  if (!createPropertyAllowed(props)) {
     return null
   }
 
@@ -388,4 +434,17 @@ function createPropertyHandler({value, schema, path, onChange}) {
       // })
     }
   }
+}
+
+function editHandler({io, path, params: {mode}}) {
+  return mode === 'edit' ?
+    [] :
+    [{
+      key: 'enter',
+      label: 'edit',
+      fn: () => io('/location', 'REPLACE', {
+        pathname: path,
+        search: {mode: 'edit'}
+      })
+    }]
 }

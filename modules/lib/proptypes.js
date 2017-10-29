@@ -1,11 +1,11 @@
-import React from "react"
+import PropTypes from "prop-types"
 
 export default {
-  JSON: React.PropTypes.oneOfType([
-    React.PropTypes.bool,
-    React.PropTypes.number,
-    React.PropTypes.string,
-    React.PropTypes.array,
-    React.PropTypes.object
+  JSON: PropTypes.oneOfType([
+    PropTypes.bool,
+    PropTypes.number,
+    PropTypes.string,
+    PropTypes.array,
+    PropTypes.object
   ])
 }

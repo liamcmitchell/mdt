@@ -8,7 +8,7 @@ const node = {
       fn: () => console.log("yo, this is " + this.key + " from level " + this.depth)
     }]
   },
-  nodes() {
+  children() {
     if (this.depth < 100) {
       var newDepth = this.depth + 1
       return ["one", "two", "three", "four", "five"].map(text => ({
