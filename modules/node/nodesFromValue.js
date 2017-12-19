@@ -13,6 +13,7 @@ import omit from 'lodash/omit'
 import toPairs from 'lodash/toPairs'
 import fromPairs from 'lodash/fromPairs'
 import indexOf from 'lodash/indexOf'
+import last from 'lodash/last'
 import React from 'react'
 import ItemEdit from 'node/ItemEdit'
 
@@ -66,12 +67,18 @@ function typeNode({schema, onChange, value}) {
   }
 
   return {
-    // Object property can be 'type'. Better solution is to namespace all keys
-    // but I want to avoid this if possible.
-    key: isObject(value) && !isArray(value) ?
-      uniqueString('type', keys(value)) :
-      'type',
-    handlers: editHandler,
+    key: 'type',
+    handlers: ({io, path, params: {mode}}) => [
+      mode !== 'edit' && {
+        key: 'enter',
+        label: 'edit',
+        fn: () =>
+          io('/location', 'REPLACE', {
+            pathname: `/${path}`,
+            search: {mode: 'edit'},
+          }),
+      },
+    ],
     item: ({params: {mode}}) =>
       mode !== 'edit' ?
         '<' + getType(value) + '>' :
@@ -85,12 +92,12 @@ function typeNode({schema, onChange, value}) {
   }
 }
 
-// Prepend underscore until it doesn't conflict.
-function uniqueString(string, conflicting) {
-  while (conflicting.indexOf(string) >= 0) {
-    string = '_' + string
-  }
-  return string
+// Must namespace and encode keys.
+const toSafeKey = (key) => `.${key}`
+const fromSafeKey = (key) => key.slice(1)
+
+const pathSibling = (path, sibling) => {
+  return path.split('/').slice(0, -1).concat([sibling]).join('/')
 }
 
 const TYPES = {
@@ -133,7 +140,16 @@ const TYPES = {
               }}
               onChange={onChange}
             />,
-        handlers: editHandler
+        handlers: ({io, path, params: {mode}}) => [
+          mode !== 'edit' && {
+            key: 'enter',
+            label: 'edit',
+            fn: () => io('/location', 'REPLACE', {
+              pathname: `/${path}`,
+              search: {mode: 'edit'}
+            })
+          },
+        ],
       }]
     }
   },
@@ -152,107 +168,239 @@ const TYPES = {
               }}
               onChange={onChange}
             />,
-        handlers: editHandler
+        handlers: ({io, path, params: {mode}}) => [
+          mode !== 'edit' && {
+            key: 'enter',
+            label: 'edit',
+            fn: () => io('/location', 'REPLACE', {
+              pathname: `/${path}`,
+              search: {mode: 'edit'}
+            })
+          },
+        ],
       }]
     }
   },
   array: {
     new: () => [],
     children: (props) => {
-      const {value} = props
+      const {value, onChange} = props
 
       return [
-        map(value, itemNode.bind(null, props)),
-        createItemNode(props)
+        // Array items.
+        map(value, (v, k) => {
+          return {
+            key: toSafeKey(k),
+            item: ({params: {mode}}) =>
+              mode !== 'edit' ?
+                k :
+                // Allow editing index.
+                <ItemEdit
+                  value={k}
+                  schema={{
+                    type: 'number',
+                    minimum: 0,
+                    maximum: value.length - 1,
+                    multipleOf: 1
+                  }}
+                  onChange={newK => {
+                    if (newK !== k) {
+                      const newVal = clone(value)
+                      newVal.splice(k, 1)
+                      newVal.splice(newK, 0, v)
+                      return onChange(newVal)
+                    }
+                  }}
+                />,
+            handlers: ({io, path, params: {mode}}) => {
+              if (!mode) {
+                return [
+                  mode !== 'edit' && {
+                    key: 'enter',
+                    label: 'edit',
+                    fn: () =>
+                      io('/location', 'REPLACE', {
+                        pathname: `/${path}`,
+                        search: {mode: 'edit'}
+                      })
+                  },
+                  createItemAllowed(props) && {
+                    key: 'n',
+                    label: 'new item',
+                    fn: () => {
+                      // Get type of new item from schema.
+                      const newItem = newValueFromSchema(itemSchema(props, value.length))
+
+                      return onChange(value.concat([newItem]))
+                        .then(() => io('/location', 'REPLACE', {pathname: `/${path}/${toSafeKey(value.length)}`}))
+                    },
+                  },
+                  Boolean(onChange) && {
+                    key: 'backspace',
+                    label: 'delete item',
+                    fn: () => {
+                      const newVal = clone(value)
+                      newVal.splice(k, 1)
+                      return onChange(newVal)
+                        .then(() =>
+                          io('/location', 'REPLACE', {
+                            pathname: `/${pathSibling(path, toSafeKey(Math.min(k, newVal.length - 1)))}`,
+                          })
+                        )
+                    }
+                  },
+                ]
+              }
+            },
+            children: nodesFromValue({
+              value: v,
+              schema: itemSchema(props, k),
+              onChange: newV =>
+                onChange(value.map((oldV, oldK) => oldK === k ? newV : oldV))
+            })
+          }
+        }),
+        // Create new item.
+        createItemAllowed(props) && {
+            key: 'new',
+            item: '+',
+            handlers: ({io, path}) => [{
+              key: 'enter',
+              label: 'new item',
+              fn: () => {
+                // Get type of new item from schema.
+                const newItem = newValueFromSchema(itemSchema(props, value.length))
+
+                return onChange(value.concat([newItem]))
+                  .then(() => io('/location', 'REPLACE', {pathname: `/${pathSibling(path, toSafeKey(value.length))}`}))
+              },
+            }]
+          }
       ]
     }
   },
   object: {
     new: () => ({}),
     children: (props) => {
-      const {value} = props
+      const {value, onChange} = props
 
       return [
-        map(value, propertyNode.bind(null, props)),
-        createPropertyNode(props)
+        map(value, (v, k) => {
+          return {
+            key: toSafeKey(k),
+            item: ({io, path, params: {mode}}) =>
+              mode !== 'edit' ?
+                k :
+                // Allow editing property name.
+                <ItemEdit
+                  value={k}
+                  schema={{
+                    type: 'string',
+                    validator: testK => {
+                      if (testK !== k && value.hasOwnProperty(testK)) {
+                        return 'Duplicate key exists'
+                      }
+                    },
+                  }}
+                  onChange={(newK) => {
+                    // Try to preserve key order.
+                    return onChange(fromPairs(toPairs(value).map(pair =>
+                      pair[0] === k ? [newK, pair[1]] : pair
+                    )))
+                      // Move to new path after making change.
+                      .then(() =>
+                        io('/location', 'REPLACE', {
+                          pathname: `/${pathSibling(path, encodeURIComponent(toSafeKey(newK)))}`,
+                        })
+                      )
+                  }}
+                />,
+            handlers: ({io, path, params: {mode}}) => [
+              mode !== 'edit' && {
+                key: 'enter',
+                label: 'edit property',
+                fn: () => io('/location', 'REPLACE', {
+                  pathname: `/${path}`,
+                  search: {mode: 'edit'},
+                })
+              },
+              mode !== 'edit' && createPropertyAllowed(props) && {
+                key: 'n',
+                label: 'new property',
+                fn: () => {
+                  return io('/location', 'REPLACE', {
+                    pathname: `/${pathSibling(path, 'new')}`,
+                    search: {mode: 'edit'}
+                  })
+                }
+              },
+              mode !== 'edit' && deletePropertyAllowed(props, k) && {
+                key: 'backspace',
+                label: 'delete property',
+                fn: () => {
+                  const index = indexOf(keys(value), k)
+                  const newVal = omit(value, k)
+                  const newKeys = keys(newVal)
+                  const newCursorKey = newKeys.length > index ? newKeys[index] : last(newKeys)
+                  onChange(newVal)
+                    .then(() => io('/location', 'REPLACE', {pathname: `/${pathSibling(path, encodeURIComponent(toSafeKey(newCursorKey)))}`}))
+                }
+              }
+            ],
+            children: nodesFromValue({
+              value: v,
+              schema: propertySchema(props, k),
+              onChange: newV =>
+                onChange({
+                  ...value,
+                  [k]: newV
+                })
+            })
+          }
+        }),
+        createPropertyAllowed(props) && {
+          key: 'new',
+          item: ({io, path, params: {mode}}) =>
+            mode !== 'edit' ?
+              '+' :
+              <ItemEdit
+                value={''}
+                schema={{
+                  type: 'string',
+                  validator: testK => {
+                    if (testK !== undefined && value.hasOwnProperty(testK)) {
+                      return 'Duplicate key exists'
+                    }
+                  },
+                }}
+                onChange={newK => {
+                  // Get value for new property from schema.
+                  const newV = newValueFromSchema(propertySchema(props, newK))
+
+                  return onChange({
+                    ...value,
+                    [newK]: newV
+                  })
+                    .then(() => {
+                      io('/location', 'REPLACE', {
+                        pathname: `/${pathSibling(path, encodeURIComponent(toSafeKey(newK)))}`
+                      })
+                    })
+                }}
+              />,
+          handlers: ({io, path, params: {mode}}) => [
+            mode !== 'edit' && {
+              key: 'enter',
+              label: 'new property',
+              fn: () => io('/location', 'REPLACE', {
+                pathname: `/${path}`,
+                search: {mode: 'edit'},
+              })
+            }
+          ],
+        },
       ]
     }
-  }
-}
-
-// Array item.
-function itemNode(props, v, k) {
-  const {value, onChange} = props
-  return {
-    key: k.toString(),
-    item: ({params: {mode}}) =>
-      mode !== 'edit' ?
-        k :
-        // Allow editing index.
-        <ItemEdit
-          value={k}
-          schema={{
-            type: 'number',
-            minimum: 0,
-            maximum: value.length - 1,
-            multipleOf: 1
-          }}
-          onChange={newK => {
-            if (newK !== k) {
-              const newVal = clone(value)
-              newVal.splice(k, 1)
-              newVal.splice(newK, 0, v)
-              return onChange(newVal)
-            }
-          }}
-        />,
-    handlers: props => {
-      const {params: {mode}} = props
-
-      if (!mode) {
-        return editHandler(props).concat([
-          createItemAllowed(props) ? {
-            key: 'n',
-            label: 'new item',
-            fn: createItem.bind(null, props)
-          } : null,
-          deleteItemAllowed(props, k) ? {
-            key: 'backspace',
-            label: 'delete item',
-            fn: () => {
-              const newVal = clone(value)
-              newVal.splice(k, 1)
-              return onChange(newVal)
-                // .then(() =>
-                //   data('/cursor/path').set(path.concat(newVal.length === k ? k - 1 : k))
-                // )
-            }
-          } : null
-        ])
-      }
-    },
-    children: nodesFromValue({
-      value: v,
-      schema: itemSchema(props, k),
-      onChange: newV =>
-        onChange(value.map((oldV, oldK) => oldK === k ? newV : oldV))
-    })
-  }
-}
-
-function createItemNode(props) {
-  if (!createItemAllowed(props)) {
-    return null
-  }
-
-  return {
-    key: 'new',
-    item: '+',
-    handlers: [{
-      key: 'enter',
-      label: 'new item',
-      fn: createItem.bind(null, props)
-    }]
   }
 }
 
@@ -282,106 +430,6 @@ function createItemAllowed(props) {
   return true
 }
 
-function deleteItemAllowed(props, k) {
-  const {onChange} = props
-
-  // TODO: Observe tuple, min & max restraints.
-  return !!onChange
-}
-
-function createItem(props) {
-  const {value, onChange} = props
-
-  // Get type of new item from schema.
-  const newItem = newValueFromSchema(itemSchema(props, value.length))
-
-  return onChange(value.concat([newItem]))
-    // .then(() => data('/cursor/path').set(path.concat(value.length)))
-}
-
-function propertyNode(props, v, k) {
-  const {value, onChange} = props
-
-  return {
-    key: k.toString(),
-    item: k.toString(),
-    // Allow editing property name.
-    schema: {
-      type: 'string',
-      validator: testK => {
-        if (testK !== k && value.hasOwnProperty(testK)) {
-          return 'Duplicate key exists'
-        }
-        if (testK === '') {
-          return 'No empty string properties you masochist'
-        }
-      }
-    },
-    onChange: newK => {
-      // Try to preserve key order.
-      return onChange(fromPairs(toPairs(value).map(pair =>
-        pair[0] === k ? [newK, pair[1]] : pair
-      )))
-      // Move to new path after making change.
-      // .then(() => data('/cursor/path').set(path.concat(newK)))
-    },
-    handlers: [
-      createPropertyHandler(props),
-      deletePropertyAllowed(props, k) ? {
-        key: 'backspace',
-        label: 'delete property',
-        fn: () => {
-          const index = indexOf(keys(value), k)
-          const newVal = omit(value, k)
-          const newKeys = keys(newVal)
-          onChange(newVal)
-          // .then(() => data('/cursor/path').set(path.concat(newKeys[index] || last(newKeys))))
-        }
-      } : null
-    ],
-    children: nodesFromValue({
-      value: v,
-      schema: propertySchema(props, k),
-      onChange: newV =>
-        onChange({
-          ...value,
-          [k]: newV
-        })
-    })
-  }
-}
-
-function createPropertyNode(props) {
-  const {value, onChange} = props
-
-  if (!createPropertyAllowed(props)) {
-    return null
-  }
-
-  return {
-    key: uniqueString('new', keys(value)),
-    item: '+',
-    value: '',
-    schema: {
-      type: 'string'
-      // TODO: Validate keys.
-    },
-    onChange: newK => {
-      // Get value for new property from schema.
-      const newV = newValueFromSchema(propertySchema(props, newK))
-
-      return onChange({
-        ...value,
-        [newK]: newV
-      })
-        // .then(() => {
-        //   data('/cursor/path').set(path.concat(newK))
-        //   return data('/cursor/editing').set(true)
-        // })
-    }
-  }
-}
-
 function propertySchema(props, k) {
   const {schema} = props
 
@@ -398,11 +446,7 @@ function propertySchema(props, k) {
 function createPropertyAllowed(props) {
   const {schema, onChange} = props
 
-  return onChange && (
-    schema ?
-      schema.additionalProperties !== false :
-      true
-  )
+  return onChange && (!schema || schema.additionalProperties !== false)
 }
 
 function deletePropertyAllowed(props, k) {
@@ -415,36 +459,4 @@ function deletePropertyAllowed(props, k) {
       (schema.required || []).indexOf(k) === -1 :
       true
   )
-}
-
-function createPropertyHandler(props) {
-  if (!createPropertyAllowed(props)) {
-    return null
-  }
-
-  return {
-    key: 'n',
-    label: 'new property',
-    fn: () => {
-      // TODO: Move cursor to new property node.
-      console.log('TODO')
-      // return data('/cursor').set({
-      //   path: path.concat(uniqueString('new', keys(value))),
-      //   editing: true
-      // })
-    }
-  }
-}
-
-function editHandler({io, path, params: {mode}}) {
-  return mode === 'edit' ?
-    [] :
-    [{
-      key: 'enter',
-      label: 'edit',
-      fn: () => io('/location', 'REPLACE', {
-        pathname: path,
-        search: {mode: 'edit'}
-      })
-    }]
 }

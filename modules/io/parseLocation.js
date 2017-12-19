@@ -1,4 +1,4 @@
-import {map} from 'rxjs/operator/map'
+import {map} from 'rxjs/operators/map'
 import qs from 'qs'
 
 // Parse/stringify query string.
@@ -16,7 +16,7 @@ export default function parseLocation() {
     const {method, params} = request
 
     if (method === 'OBSERVE') {
-      return source(request)::map(fromStandardLocation)
+      return source(request).pipe(map(fromStandardLocation))
     }
     else {
       return source({

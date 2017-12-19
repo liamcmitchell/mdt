@@ -8,80 +8,74 @@ import filter from 'lodash/filter'
 import last from 'lodash/last'
 import uniqBy from 'lodash/uniqBy'
 import find from 'lodash/find'
+import times from 'lodash/times'
 import compose from 'recompose/compose'
+import withProps from 'recompose/withProps'
 
-const pathToArray = p => filter(p.split('/'))
-const arrayToPath = a => '/' + a.join('/')
-const pathParent = p => arrayToPath(pathToArray(p).slice(0, -1))
-const pathKey = p => last(pathToArray(p))
-
-// Turn path into array of paths including root (empty) and original.
-function pathToSubPaths(path) {
-  const array = pathToArray(path)
-  return [[]]
-    .concat(array.map((v, i) => array.slice(0, i + 1)))
-    .map(arrayToPath)
-}
+const arrayToPath = a => a.join('/')
 
 export default compose(
   withIO({
     location: '/location',
     styles: '/styles'
   }),
-  withIO(({io, location: {pathname, search}}) => {
+  withProps(({location: {pathname}}) => ({
+    path: pathname.slice(1),
+    pathPieces: pathname.slice(1).split('/'),
+  })),
+  withIO(({io, path, pathPieces, location: {search}}) => {
     return {
-      nodeHandlers: io(`/node/handlers${pathname}`, search),
-      siblings: `/node/children${pathParent(pathname)}`,
-      children: `/node/children${pathname}`
+      nodeHandlers: io(`/node/handlers/${path}`, search),
+      siblings: `/node/children/${pathPieces.slice(0, -1).join('/')}`,
+      children: `/node/children/${path}`
     }
   })
 )(class NodeUI extends Component {
-  setPath(pathname) {
+  setPathPieces(pathPieces) {
     const {io} = this.props
 
-    io('/location', 'REPLACE', {
-      pathname: pathname.replace(/^\/\//, '/')
-    })
+    io('/location', 'REPLACE', {pathname: `/${pathPieces.join('/')}`})
   }
 
   handleEscape = () => {
-    const {location: {pathname}} = this.props
-    this.setPath(pathname)
+    const {pathPieces} = this.props
+    this.setPathPieces(pathPieces)
   }
 
   handleLeft = () => {
-    const {location: {pathname}} = this.props
-    const parent = pathParent(pathname)
+    const {pathPieces} = this.props
+    const parent = pathPieces.slice(0, -1)
 
-    if (parent !== '/') {
-      this.setPath(parent)
+    if (parent.length) {
+      this.setPathPieces(parent)
     }
   }
 
   handleUpDown = event => {
-    const {location: {pathname}, siblings} = this.props
+    const {pathPieces, siblings} = this.props
     const key = keycode(event)
     const keys = siblings.filter(isFocusable).map(n => n.key)
 
     // Siblings may be empty if there is a bad url (we still show error).
     if (keys.length) {
-      const nextIndex = keys.includes(pathKey(pathname)) ?
+      const currentKey = decodeURIComponent(last(pathPieces))
+      const nextIndex = keys.includes(currentKey) ?
         // If the current key exists, we want a key relative to it.
-        keys.indexOf(pathKey(pathname)) + (key === 'up' ? -1 : +1) :
+        keys.indexOf(currentKey) + (key === 'up' ? -1 : +1) :
         // Otherwise pick the first or last key.
         key === 'up' ? -1 : 0
       const nextKey = getLoopingArrayItem(keys, nextIndex)
-      this.setPath(pathParent(pathname) + (pathname === '/' ? '' : '/') + nextKey)
+      this.setPathPieces(pathPieces.slice(0, -1).concat(encodeURIComponent(nextKey)))
     }
   }
 
   handleRight = () => {
-    const {location: {pathname}, children} = this.props
+    const {pathPieces, children} = this.props
     const focusable = children.filter(isFocusable)
 
     if (focusable.length === 0) return null
 
-    this.setPath(pathname + (pathname === '/' ? '' : '/') + focusable[0].key)
+    this.setPathPieces(pathPieces.concat(encodeURIComponent(focusable[0].key)))
   }
 
   getNavHandlers() {
@@ -134,9 +128,12 @@ export default compose(
   }
 
   render() {
-    const {styles, location: {pathname}} = this.props
-    const subPaths = pathToSubPaths(pathname)
-    const pathPieces = pathToArray(pathname)
+    const {styles, pathPieces} = this.props
+
+    // Turn path into array of paths including root (empty) and original.
+    const subPaths = times(pathPieces.length + 1)
+        .map((i) => pathPieces.slice(0, i))
+        .map(arrayToPath)
 
     return <div
       onKeyDown={this.handleKeyDown}
@@ -160,7 +157,7 @@ export default compose(
           <NodeChildren
             key={subPath}
             path={subPath}
-            activeKey={pathPieces[i]}
+            activeKey={decodeURIComponent(pathPieces[i] || '')}
             activeIsFocused={pathPieces.length === i + 1}
           />
         )}

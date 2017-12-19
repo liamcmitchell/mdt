@@ -19,8 +19,8 @@ export default compose(
     })
   ),
   withIO(({io, path, location: {search} = {}}) => ({
-    item: io(`/node/item${path}`, search),
-    focusable: `/node/focusable${path}`,
+    item: io(`/node/item/${path}`, search),
+    focusable: `/node/focusable/${path}`,
     styles: '/styles'
   })),
   pure
@@ -30,7 +30,7 @@ export default compose(
   return <Focusable
     el='div'
     focused={isFocused}
-    href={path}
+    href={`/${path}`}
     style={{
       cursor: focusable ? 'pointer' : null,
       color: focusable ?
@@ -43,7 +43,7 @@ export default compose(
     onClick={(e) => {
       if (focusable && !isFocused) {
         io('/location', 'REPLACE', {
-          pathname: path
+          pathname: `${path}`,
         })
       }
       e.preventDefault()

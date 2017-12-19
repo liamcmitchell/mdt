@@ -1,8 +1,8 @@
 import {paths, methods} from 'url-io'
 import ensureObservable from 'lib/ensureObservable'
 import {of} from 'rxjs/observable/of'
-import {map} from 'rxjs/operator/map'
-import {switchMap} from 'rxjs/operator/switchMap'
+import {map} from 'rxjs/operators/map'
+import {switchMap} from 'rxjs/operators/switchMap'
 import {pathToArray} from 'url-io'
 
 const hasKey = key => node => node && node.key === key
@@ -37,14 +37,21 @@ export default function createNodeSource(root) {
 
         // Find leaf in parent.
         const rootPath = originalPath.replace(`/meta/${path}`, '')
-        const key = pathArray[pathArray.length - 1]
+        let key = pathArray[pathArray.length - 1]
+        try {
+          key = decodeURIComponent(key)
+        }
+        catch (error) {
+          console.error(key, error) // eslint-disable-line
+        }
         const parentNodesPath = `${rootPath}/children/${pathArray.slice(0, pathArray.length - 1).join('/')}`
-        return io(parentNodesPath)
+        return io(parentNodesPath).pipe(
           // If the node isn't there, return a dummy containing an error message.
-          ::map(children => children.find(hasKey(key)) || {
+          map(children => children.find(hasKey(key)) || {
             key: key,
             item: new Error(`${key} not found in ${parentNodesPath}`)
           })
+        )
       }
     }),
     '/:property': methods({
@@ -57,9 +64,9 @@ export default function createNodeSource(root) {
 
         const rootPath = originalPath.replace(`/${property}/${path}`, '')
 
-        return io(`${rootPath}/meta/${path}`)
+        return io(`${rootPath}/meta/${path}`).pipe(
           // Property may resolve to be an observable so we need flatmap.
-          ::switchMap(node => ensureObservable(
+          switchMap(node => ensureObservable(
             // Use default if node doesn't have property.
             !node.hasOwnProperty(property) ?
               NODE_DEFAULTS[property] :
@@ -68,6 +75,7 @@ export default function createNodeSource(root) {
                 node[property](request) :
                 node[property]
           ))
+        )
       }
     })
   })

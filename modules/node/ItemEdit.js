@@ -8,7 +8,7 @@ export default compose(
     styles: '/styles',
     location: '/location'
   })
-)(class EditItem extends Component {
+)(class ItemEdit extends Component {
   constructor({value}) {
     super()
     this.state = {value}

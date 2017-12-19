@@ -8,7 +8,7 @@ import pure from 'recompose/pure'
 export default compose(
   pure,
   withIO(({path}) => ({
-    children: `/node/children${path}`,
+    children: `/node/children/${path}`,
     styles: '/styles'
   })),
   pure
@@ -59,7 +59,7 @@ export default compose(
     }}
     onClick={isFocusedAncestor ?
       () => io('/location', 'REPLACE', {
-        pathname: path
+        pathname: `/${path}`
       }) :
       null
     }
@@ -67,7 +67,7 @@ export default compose(
     {childrenToRender.map(({key}) =>
       <NodeItem
         key={key}
-        path={`${path}${path === '/' ? '' : '/'}${key}`}
+        path={`${path}${path ? '/' : ''}${encodeURIComponent(key)}`}
         isActive={activeKey === key}
         isFocused={activeKey === key && activeIsFocused}
       />
