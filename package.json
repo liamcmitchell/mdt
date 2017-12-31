@@ -6,7 +6,7 @@
   "scripts": {
     "start": "webpack-dev-server",
     "dev": "webpack-dev-server",
-    "build": "webpack --env.prod && cp public/* build/ && cp public/index.html build/400.html",
+    "build": "rm -rf build && webpack --env.prod && cp public/* build/ && cp public/index.html build/404.html",
     "deploy": "gh-pages --dist build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
