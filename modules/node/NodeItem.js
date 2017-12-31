@@ -43,7 +43,7 @@ export default compose(
     onClick={(e) => {
       if (focusable && !isFocused) {
         io('/location', 'REPLACE', {
-          pathname: `${path}`,
+          pathname: `/${path}`,
         })
       }
       e.preventDefault()

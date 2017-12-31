@@ -1,8 +1,9 @@
 /* eslint-env node */
 const path = require('path')
 const webpack = require('webpack')
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
 
-module.exports = {
+module.exports = ({prod} = {}) => ({
   entry: [
     'babel-polyfill',
     'app'
@@ -32,7 +33,7 @@ module.exports = {
     publicPath: '/',
     filename: 'app.js',
   },
-  devtool: 'eval-source-map',
+  devtool: !prod && 'eval-source-map',
   devServer: {
     contentBase: path.join(__dirname, 'public'),
     watchContentBase: true,
@@ -41,10 +42,20 @@ module.exports = {
     },
     hot: true,
     compress: true,
-    port: 8080
+    port: 8080,
+    stats: 'errors-only',
   },
   plugins: [
-    new webpack.HotModuleReplacementPlugin()
-  ],
-  stats: false,
-}
+    !prod && new webpack.HotModuleReplacementPlugin(),
+    prod && new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify('production'),
+    }),
+    prod && new UglifyJsPlugin({
+      uglifyOptions: {
+        output: {
+          semicolons: false, // Use newlines instead of semicolons to reduce git change size.
+        },
+      },
+    }),
+  ].filter(Boolean),
+})

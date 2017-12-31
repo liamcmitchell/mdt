@@ -2,12 +2,6 @@ const node = {
   key: "dummy",
   depth: 0,
   item: "dummy",
-  handlers: function() {
-    return [{
-      key: 'enter',
-      fn: () => console.log("yo, this is " + this.key + " from level " + this.depth)
-    }]
-  },
   children() {
     if (this.depth < 100) {
       var newDepth = this.depth + 1
