@@ -1,4 +1,4 @@
-import PropTypes from "prop-types"
+import PropTypes from 'prop-types'
 
 export default {
   JSON: PropTypes.oneOfType([
@@ -6,6 +6,6 @@ export default {
     PropTypes.number,
     PropTypes.string,
     PropTypes.array,
-    PropTypes.object
-  ])
+    PropTypes.object,
+  ]),
 }

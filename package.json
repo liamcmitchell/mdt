@@ -8,7 +8,22 @@
     "dev": "webpack-dev-server",
     "build": "rm -rf build && webpack --env.prod && cp public/* build/ && cp public/index.html build/404.html",
     "deploy": "gh-pages --dist build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "precommit": "lint-staged"
+  },
+  "lint-staged": {
+    "*.js": [
+      "prettier --write",
+      "git add",
+      "eslint"
+    ]
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "bracketSpacing": false,
+    "arrowParens": "always"
   },
   "repository": {
     "type": "git",
@@ -30,7 +45,7 @@
     "babel-preset-react": "^6.24.1",
     "babel-preset-stage-0": "^6.24.1",
     "body-parser": "^1.14.2",
-    "eslint": "^4.10.0",
+    "eslint": "^4.19.0",
     "eslint-plugin-react": "^7.4.0",
     "gh-pages": "^1.1.0",
     "history": "^4.6.1",
@@ -49,5 +64,11 @@
     "url-io": "^4.2.0",
     "webpack": "^3.8.1",
     "webpack-dev-server": "^2.4.2"
+  },
+  "devDependencies": {
+    "eslint-config-prettier": "^2.9.0",
+    "husky": "^0.14.3",
+    "lint-staged": "^7.0.0",
+    "prettier": "1.11.1"
   }
 }

@@ -5,7 +5,7 @@ import PropTypes from 'prop-types'
 export default class Focusable extends Component {
   static propTypes = {
     el: PropTypes.string.isRequired,
-    focused: PropTypes.bool
+    focused: PropTypes.bool,
   }
 
   componentDidMount() {
@@ -16,7 +16,7 @@ export default class Focusable extends Component {
     this.focus()
   }
 
-  handleRef = el => {
+  handleRef = (el) => {
     this.el = el
   }
 
@@ -25,11 +25,7 @@ export default class Focusable extends Component {
   }
 
   focus() {
-    if (
-      this.el &&
-      this.props.focused &&
-      !this.hasFocus()
-    ) {
+    if (this.el && this.props.focused && !this.hasFocus()) {
       this.el.focus()
     }
   }
@@ -50,11 +46,13 @@ export default class Focusable extends Component {
   render() {
     const {el: El, focused, ...props} = this.props
 
-    return <El
-      ref={this.handleRef}
-      onBlur={this.handleBlur}
-      tabIndex='-1'
-      {...props}
-    />
+    return (
+      <El
+        ref={this.handleRef}
+        onBlur={this.handleBlur}
+        tabIndex="-1"
+        {...props}
+      />
+    )
   }
 }

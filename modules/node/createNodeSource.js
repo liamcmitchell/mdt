@@ -5,11 +5,11 @@ import {map} from 'rxjs/operators/map'
 import {switchMap} from 'rxjs/operators/switchMap'
 import {pathToArray} from 'url-io'
 
-const hasKey = key => node => node && node.key === key
+const hasKey = (key) => (node) => node && node.key === key
 
 const NODE_DEFAULTS = {
   children: [],
-  handlers: []
+  handlers: [],
 }
 
 /*
@@ -40,19 +40,23 @@ export default function createNodeSource(root) {
         let key = pathArray[pathArray.length - 1]
         try {
           key = decodeURIComponent(key)
-        }
-        catch (error) {
+        } catch (error) {
           console.error(key, error) // eslint-disable-line
         }
-        const parentNodesPath = `${rootPath}/children/${pathArray.slice(0, pathArray.length - 1).join('/')}`
+        const parentNodesPath = `${rootPath}/children/${pathArray
+          .slice(0, pathArray.length - 1)
+          .join('/')}`
         return io(parentNodesPath).pipe(
           // If the node isn't there, return a dummy containing an error message.
-          map(children => children.find(hasKey(key)) || {
-            key: key,
-            item: new Error(`${key} not found in ${parentNodesPath}`)
-          })
+          map(
+            (children) =>
+              children.find(hasKey(key)) || {
+                key: key,
+                item: new Error(`${key} not found in ${parentNodesPath}`),
+              }
+          )
         )
-      }
+      },
     }),
     '/:property': methods({
       OBSERVE: (request) => {
@@ -66,17 +70,19 @@ export default function createNodeSource(root) {
 
         return io(`${rootPath}/meta/${path}`).pipe(
           // Property may resolve to be an observable so we need flatmap.
-          switchMap(node => ensureObservable(
-            // Use default if node doesn't have property.
-            !node.hasOwnProperty(property) ?
-              NODE_DEFAULTS[property] :
-              // Resolve fn if needed. Pass entire request.
-              typeof node[property] === 'function' ?
-                node[property](request) :
-                node[property]
-          ))
+          switchMap((node) =>
+            ensureObservable(
+              // Use default if node doesn't have property.
+              !node.hasOwnProperty(property)
+                ? NODE_DEFAULTS[property]
+                : // Resolve fn if needed. Pass entire request.
+                  typeof node[property] === 'function'
+                  ? node[property](request)
+                  : node[property]
+            )
+          )
         )
-      }
-    })
+      },
+    }),
   })
 }

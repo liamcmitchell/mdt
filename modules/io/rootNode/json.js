@@ -9,12 +9,14 @@ export default {
   children: (props) => {
     const {io} = props
 
-    return io(url).pipe(map(value =>
-      nodesFromValue({
-        ...props,
-        value,
-        onChange: value => io(url, 'SET', {value})
-      })
-    ))
-  }
+    return io(url).pipe(
+      map((value) =>
+        nodesFromValue({
+          ...props,
+          value,
+          onChange: (value) => io(url, 'SET', {value}),
+        })
+      )
+    )
+  },
 }

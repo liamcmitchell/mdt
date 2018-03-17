@@ -5,8 +5,10 @@ import io from 'io'
 
 export default class MDTApp extends Component {
   render() {
-    return <IOProvider io={io}>
-      <NodeUI />
-    </IOProvider>
+    return (
+      <IOProvider io={io}>
+        <NodeUI />
+      </IOProvider>
+    )
   }
 }

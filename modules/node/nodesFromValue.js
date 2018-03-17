@@ -18,15 +18,15 @@ import React from 'react'
 import ItemEdit from 'node/ItemEdit'
 
 function getType(value) {
-  return (
-    isArray(value) ? 'array' :
-    isObject(value) ? 'object' :
-    isNull(value) ? 'null' :
-    isBoolean(value) ? 'boolean' :
-    isNumber(value) ? 'number' :
-    isString(value) ? 'string' :
-    'unknown'
-  )
+  return isArray(value)
+    ? 'array'
+    : isObject(value)
+      ? 'object'
+      : isNull(value)
+        ? 'null'
+        : isBoolean(value)
+          ? 'boolean'
+          : isNumber(value) ? 'number' : isString(value) ? 'string' : 'unknown'
 }
 
 // Generate nodes to view (and edit) a given value.
@@ -39,10 +39,7 @@ export default function nodesFromValue(props) {
 
   const childrenFn = TYPES[getType(value)].children
 
-  return filter(flattenDeep([
-    typeNode(props),
-    childrenFn(props)
-  ]))
+  return filter(flattenDeep([typeNode(props), childrenFn(props)]))
 }
 
 function newValueFromSchema(schema) {
@@ -52,11 +49,9 @@ function newValueFromSchema(schema) {
 function schemaTypes(schema) {
   if (!schema || !schema.type) {
     return keys(TYPES)
-  }
-  else if (isString(schema.type)) {
+  } else if (isString(schema.type)) {
     return [schema.type]
-  }
-  else {
+  } else {
     return schema.type
   }
 }
@@ -80,106 +75,127 @@ function typeNode({schema, onChange, value}) {
       },
     ],
     item: ({params: {mode}}) =>
-      mode !== 'edit' ?
-        '<' + getType(value) + '>' :
+      mode !== 'edit' ? (
+        '<' + getType(value) + '>'
+      ) : (
         <ItemEdit
           value={getType(value)}
           schema={{
-            enum: schemaTypes(schema)
+            enum: schemaTypes(schema),
           }}
-          onChange={newType => onChange(TYPES[newType].new())}
-        />,
+          onChange={(newType) => onChange(TYPES[newType].new())}
+        />
+      ),
   }
 }
 
 // Must namespace and encode keys.
 const toSafeKey = (key) => `.${key}`
-const fromSafeKey = (key) => key.slice(1)
 
 const pathSibling = (path, sibling) => {
-  return path.split('/').slice(0, -1).concat([sibling]).join('/')
+  return path
+    .split('/')
+    .slice(0, -1)
+    .concat([sibling])
+    .join('/')
 }
 
 const TYPES = {
   null: {
     new: () => null,
     children: ({value}) => {
-      return [{
-        key: 'val',
-        item: value,
-        focusable: false
-      }]
-    }
+      return [
+        {
+          key: 'val',
+          item: value,
+          focusable: false,
+        },
+      ]
+    },
   },
   boolean: {
     new: () => false,
     children: ({value, onChange}) => {
-      return [{
-        key: 'val',
-        item: value,
-        handlers: [{
-          key: 'enter',
-          label: 'toggle',
-          fn: () => onChange(!value)
-        }]
-      }]
-    }
+      return [
+        {
+          key: 'val',
+          item: value,
+          handlers: [
+            {
+              key: 'enter',
+              label: 'toggle',
+              fn: () => onChange(!value),
+            },
+          ],
+        },
+      ]
+    },
   },
   number: {
     new: () => 0,
     children: ({value, onChange}) => {
-      return [{
-        key: 'val',
-        item: ({params: {mode}}) =>
-          mode !== 'edit' ?
-            value :
-            <ItemEdit
-              value={value}
-              schema={{
-                type: 'number'
-              }}
-              onChange={onChange}
-            />,
-        handlers: ({io, path, params: {mode}}) => [
-          mode !== 'edit' && {
-            key: 'enter',
-            label: 'edit',
-            fn: () => io('/location', 'REPLACE', {
-              pathname: `/${path}`,
-              search: {mode: 'edit'}
-            })
-          },
-        ],
-      }]
-    }
+      return [
+        {
+          key: 'val',
+          item: ({params: {mode}}) =>
+            mode !== 'edit' ? (
+              value
+            ) : (
+              <ItemEdit
+                value={value}
+                schema={{
+                  type: 'number',
+                }}
+                onChange={onChange}
+              />
+            ),
+          handlers: ({io, path, params: {mode}}) => [
+            mode !== 'edit' && {
+              key: 'enter',
+              label: 'edit',
+              fn: () =>
+                io('/location', 'REPLACE', {
+                  pathname: `/${path}`,
+                  search: {mode: 'edit'},
+                }),
+            },
+          ],
+        },
+      ]
+    },
   },
   string: {
     new: () => '',
     children: ({value, onChange}) => {
-      return [{
-        key: 'val',
-        item: ({params: {mode}}) =>
-          mode !== 'edit' ?
-            value :
-            <ItemEdit
-              value={value}
-              schema={{
-                type: 'string'
-              }}
-              onChange={onChange}
-            />,
-        handlers: ({io, path, params: {mode}}) => [
-          mode !== 'edit' && {
-            key: 'enter',
-            label: 'edit',
-            fn: () => io('/location', 'REPLACE', {
-              pathname: `/${path}`,
-              search: {mode: 'edit'}
-            })
-          },
-        ],
-      }]
-    }
+      return [
+        {
+          key: 'val',
+          item: ({params: {mode}}) =>
+            mode !== 'edit' ? (
+              value
+            ) : (
+              <ItemEdit
+                value={value}
+                schema={{
+                  type: 'string',
+                }}
+                onChange={onChange}
+              />
+            ),
+          handlers: ({io, path, params: {mode}}) => [
+            mode !== 'edit' && {
+              key: 'enter',
+              label: 'edit',
+              fn: () =>
+                io('/location', 'REPLACE', {
+                  pathname: `/${path}`,
+                  search: {mode: 'edit'},
+                }),
+            },
+          ],
+        },
+      ]
+    },
   },
   array: {
     new: () => [],
@@ -192,8 +208,9 @@ const TYPES = {
           return {
             key: toSafeKey(k),
             item: ({params: {mode}}) =>
-              mode !== 'edit' ?
-                k :
+              mode !== 'edit' ? (
+                k
+              ) : (
                 // Allow editing index.
                 <ItemEdit
                   value={k}
@@ -201,9 +218,9 @@ const TYPES = {
                     type: 'number',
                     minimum: 0,
                     maximum: value.length - 1,
-                    multipleOf: 1
+                    multipleOf: 1,
                   }}
-                  onChange={newK => {
+                  onChange={(newK) => {
                     if (newK !== k) {
                       const newVal = clone(value)
                       newVal.splice(k, 1)
@@ -211,7 +228,8 @@ const TYPES = {
                       return onChange(newVal)
                     }
                   }}
-                />,
+                />
+              ),
             handlers: ({io, path, params: {mode}}) => {
               if (!mode) {
                 return [
@@ -221,18 +239,23 @@ const TYPES = {
                     fn: () =>
                       io('/location', 'REPLACE', {
                         pathname: `/${path}`,
-                        search: {mode: 'edit'}
-                      })
+                        search: {mode: 'edit'},
+                      }),
                   },
                   createItemAllowed(props) && {
                     key: 'n',
                     label: 'new item',
                     fn: () => {
                       // Get type of new item from schema.
-                      const newItem = newValueFromSchema(itemSchema(props, value.length))
+                      const newItem = newValueFromSchema(
+                        itemSchema(props, value.length)
+                      )
 
-                      return onChange(value.concat([newItem]))
-                        .then(() => io('/location', 'REPLACE', {pathname: `/${path}/${toSafeKey(value.length)}`}))
+                      return onChange(value.concat([newItem])).then(() =>
+                        io('/location', 'REPLACE', {
+                          pathname: `/${path}/${toSafeKey(value.length)}`,
+                        })
+                      )
                     },
                   },
                   Boolean(onChange) && {
@@ -241,13 +264,15 @@ const TYPES = {
                     fn: () => {
                       const newVal = clone(value)
                       newVal.splice(k, 1)
-                      return onChange(newVal)
-                        .then(() =>
-                          io('/location', 'REPLACE', {
-                            pathname: `/${pathSibling(path, toSafeKey(Math.min(k, newVal.length - 1)))}`,
-                          })
-                        )
-                    }
+                      return onChange(newVal).then(() =>
+                        io('/location', 'REPLACE', {
+                          pathname: `/${pathSibling(
+                            path,
+                            toSafeKey(Math.min(k, newVal.length - 1))
+                          )}`,
+                        })
+                      )
+                    },
                   },
                 ]
               }
@@ -255,29 +280,36 @@ const TYPES = {
             children: nodesFromValue({
               value: v,
               schema: itemSchema(props, k),
-              onChange: newV =>
-                onChange(value.map((oldV, oldK) => oldK === k ? newV : oldV))
-            })
+              onChange: (newV) =>
+                onChange(value.map((oldV, oldK) => (oldK === k ? newV : oldV))),
+            }),
           }
         }),
         // Create new item.
         createItemAllowed(props) && {
-            key: 'new',
-            item: '+',
-            handlers: ({io, path}) => [{
+          key: 'new',
+          item: '+',
+          handlers: ({io, path}) => [
+            {
               key: 'enter',
               label: 'new item',
               fn: () => {
                 // Get type of new item from schema.
-                const newItem = newValueFromSchema(itemSchema(props, value.length))
+                const newItem = newValueFromSchema(
+                  itemSchema(props, value.length)
+                )
 
-                return onChange(value.concat([newItem]))
-                  .then(() => io('/location', 'REPLACE', {pathname: `/${pathSibling(path, toSafeKey(value.length))}`}))
+                return onChange(value.concat([newItem])).then(() =>
+                  io('/location', 'REPLACE', {
+                    pathname: `/${pathSibling(path, toSafeKey(value.length))}`,
+                  })
+                )
               },
-            }]
-          }
+            },
+          ],
+        },
       ]
-    }
+    },
   },
   object: {
     new: () => ({}),
@@ -289,14 +321,15 @@ const TYPES = {
           return {
             key: toSafeKey(k),
             item: ({io, path, params: {mode}}) =>
-              mode !== 'edit' ?
-                k :
+              mode !== 'edit' ? (
+                k
+              ) : (
                 // Allow editing property name.
                 <ItemEdit
                   value={k}
                   schema={{
                     type: 'string',
-                    validator: testK => {
+                    validator: (testK) => {
                       if (testK !== k && value.hasOwnProperty(testK)) {
                         return 'Duplicate key exists'
                       }
@@ -304,115 +337,140 @@ const TYPES = {
                   }}
                   onChange={(newK) => {
                     // Try to preserve key order.
-                    return onChange(fromPairs(toPairs(value).map(pair =>
-                      pair[0] === k ? [newK, pair[1]] : pair
-                    )))
-                      // Move to new path after making change.
-                      .then(() =>
-                        io('/location', 'REPLACE', {
-                          pathname: `/${pathSibling(path, encodeURIComponent(toSafeKey(newK)))}`,
-                        })
+                    return (
+                      onChange(
+                        fromPairs(
+                          toPairs(value).map(
+                            (pair) => (pair[0] === k ? [newK, pair[1]] : pair)
+                          )
+                        )
                       )
+                        // Move to new path after making change.
+                        .then(() =>
+                          io('/location', 'REPLACE', {
+                            pathname: `/${pathSibling(
+                              path,
+                              encodeURIComponent(toSafeKey(newK))
+                            )}`,
+                          })
+                        )
+                    )
                   }}
-                />,
+                />
+              ),
             handlers: ({io, path, params: {mode}}) => [
               mode !== 'edit' && {
                 key: 'enter',
                 label: 'edit property',
-                fn: () => io('/location', 'REPLACE', {
-                  pathname: `/${path}`,
-                  search: {mode: 'edit'},
-                })
+                fn: () =>
+                  io('/location', 'REPLACE', {
+                    pathname: `/${path}`,
+                    search: {mode: 'edit'},
+                  }),
               },
-              mode !== 'edit' && createPropertyAllowed(props) && {
-                key: 'n',
-                label: 'new property',
-                fn: () => {
-                  return io('/location', 'REPLACE', {
-                    pathname: `/${pathSibling(path, 'new')}`,
-                    search: {mode: 'edit'}
-                  })
-                }
-              },
-              mode !== 'edit' && deletePropertyAllowed(props, k) && {
-                key: 'backspace',
-                label: 'delete property',
-                fn: () => {
-                  const index = indexOf(keys(value), k)
-                  const newVal = omit(value, k)
-                  const newKeys = keys(newVal)
-                  const newCursorKey = newKeys.length > index ? newKeys[index] : last(newKeys)
-                  onChange(newVal)
-                    .then(() => io('/location', 'REPLACE', {pathname: `/${pathSibling(path, encodeURIComponent(toSafeKey(newCursorKey)))}`}))
-                }
-              }
+              mode !== 'edit' &&
+                createPropertyAllowed(props) && {
+                  key: 'n',
+                  label: 'new property',
+                  fn: () => {
+                    return io('/location', 'REPLACE', {
+                      pathname: `/${pathSibling(path, 'new')}`,
+                      search: {mode: 'edit'},
+                    })
+                  },
+                },
+              mode !== 'edit' &&
+                deletePropertyAllowed(props, k) && {
+                  key: 'backspace',
+                  label: 'delete property',
+                  fn: () => {
+                    const index = indexOf(keys(value), k)
+                    const newVal = omit(value, k)
+                    const newKeys = keys(newVal)
+                    const newCursorKey =
+                      newKeys.length > index ? newKeys[index] : last(newKeys)
+                    onChange(newVal).then(() =>
+                      io('/location', 'REPLACE', {
+                        pathname: `/${pathSibling(
+                          path,
+                          encodeURIComponent(toSafeKey(newCursorKey))
+                        )}`,
+                      })
+                    )
+                  },
+                },
             ],
             children: nodesFromValue({
               value: v,
               schema: propertySchema(props, k),
-              onChange: newV =>
+              onChange: (newV) =>
                 onChange({
                   ...value,
-                  [k]: newV
-                })
-            })
+                  [k]: newV,
+                }),
+            }),
           }
         }),
         createPropertyAllowed(props) && {
           key: 'new',
           item: ({io, path, params: {mode}}) =>
-            mode !== 'edit' ?
-              '+' :
+            mode !== 'edit' ? (
+              '+'
+            ) : (
               <ItemEdit
                 value={''}
                 schema={{
                   type: 'string',
-                  validator: testK => {
+                  validator: (testK) => {
                     if (testK !== undefined && value.hasOwnProperty(testK)) {
                       return 'Duplicate key exists'
                     }
                   },
                 }}
-                onChange={newK => {
+                onChange={(newK) => {
                   // Get value for new property from schema.
                   const newV = newValueFromSchema(propertySchema(props, newK))
 
                   return onChange({
                     ...value,
-                    [newK]: newV
-                  })
-                    .then(() => {
-                      io('/location', 'REPLACE', {
-                        pathname: `/${pathSibling(path, encodeURIComponent(toSafeKey(newK)))}`
-                      })
+                    [newK]: newV,
+                  }).then(() => {
+                    io('/location', 'REPLACE', {
+                      pathname: `/${pathSibling(
+                        path,
+                        encodeURIComponent(toSafeKey(newK))
+                      )}`,
                     })
+                  })
                 }}
-              />,
+              />
+            ),
           handlers: ({io, path, params: {mode}}) => [
             mode !== 'edit' && {
               key: 'enter',
               label: 'new property',
-              fn: () => io('/location', 'REPLACE', {
-                pathname: `/${path}`,
-                search: {mode: 'edit'},
-              })
-            }
+              fn: () =>
+                io('/location', 'REPLACE', {
+                  pathname: `/${path}`,
+                  search: {mode: 'edit'},
+                }),
+            },
           ],
         },
       ]
-    }
-  }
+    },
+  },
 }
 
-function itemSchema(props, k) {
+function itemSchema(props) {
   const {schema} = props
 
-  return !schema ?
-    null :
-    isObject(schema.items) && !isArray(schema.items) ?
-      schema.items :
-      // TODO: Handle tuple schema.
-      null
+  return !schema
+    ? null
+    : isObject(schema.items) && !isArray(schema.items)
+      ? schema.items
+      : // TODO: Handle tuple schema.
+        null
 }
 
 function createItemAllowed(props) {
@@ -434,13 +492,13 @@ function propertySchema(props, k) {
   const {schema} = props
 
   // TODO: Pattern properties
-  return !schema ?
-    null :
-    schema.properties && schema.properties.hasOwnProperty(k) ?
-      schema.properties[k] :
-      isObject(schema.additionalProperties) ?
-        schema.additionalProperties :
-        null
+  return !schema
+    ? null
+    : schema.properties && schema.properties.hasOwnProperty(k)
+      ? schema.properties[k]
+      : isObject(schema.additionalProperties)
+        ? schema.additionalProperties
+        : null
 }
 
 function createPropertyAllowed(props) {
@@ -453,10 +511,11 @@ function deletePropertyAllowed(props, k) {
   const {schema, onChange} = props
 
   // TODO: Observe min/max.
-  return onChange && (
-    schema ?
-      // Allow delete if key is not required.
-      (schema.required || []).indexOf(k) === -1 :
-      true
+  return (
+    onChange &&
+    (schema
+      ? // Allow delete if key is not required.
+        (schema.required || []).indexOf(k) === -1
+      : true)
   )
 }

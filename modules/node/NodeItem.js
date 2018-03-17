@@ -15,44 +15,45 @@ export default compose(
   branch(
     ({isFocused}) => isFocused,
     withIO({
-      location: '/location'
+      location: '/location',
     })
   ),
   withIO(({io, path, location: {search} = {}}) => ({
     item: io(`/node/item/${path}`, search),
     focusable: `/node/focusable/${path}`,
-    styles: '/styles'
+    styles: '/styles',
   })),
   pure
 )(function NodeItem({
-  io, path, styles, focusable = true, isFocused, isActive, item
+  io,
+  path,
+  styles,
+  focusable = true,
+  isFocused,
+  isActive,
+  item,
 }) {
-  return <Focusable
-    el='div'
-    focused={isFocused}
-    href={`/${path}`}
-    style={{
-      cursor: focusable ? 'pointer' : null,
-      color: focusable ?
-        styles.primaryColor :
-        styles.secondaryColor,
-      backgroundColor: isFocused || isActive ?
-        styles.backgroundHighlightColor :
-        null
-    }}
-    onClick={(e) => {
-      if (focusable && !isFocused) {
-        io('/location', 'REPLACE', {
-          pathname: `/${path}`,
-        })
-      }
-      e.preventDefault()
-    }}
-  >
-    {
-      React.isValidElement(item) ?
-        item :
-        <ItemView item={item} />
-    }
-  </Focusable>
+  return (
+    <Focusable
+      el="div"
+      focused={isFocused}
+      href={`/${path}`}
+      style={{
+        cursor: focusable ? 'pointer' : null,
+        color: focusable ? styles.primaryColor : styles.secondaryColor,
+        backgroundColor:
+          isFocused || isActive ? styles.backgroundHighlightColor : null,
+      }}
+      onClick={(e) => {
+        if (focusable && !isFocused) {
+          io('/location', 'REPLACE', {
+            pathname: `/${path}`,
+          })
+        }
+        e.preventDefault()
+      }}
+    >
+      {React.isValidElement(item) ? item : <ItemView item={item} />}
+    </Focusable>
+  )
 })

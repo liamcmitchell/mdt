@@ -4,8 +4,7 @@ export default function wrapFn(wrapper, fn) {
   if (wrapper.state) {
     wrapper.state.fn = fn
     return wrapper
-  }
-  else {
+  } else {
     const state = {fn}
     wrapper = function() {
       return state.fn.apply(this, arguments)
