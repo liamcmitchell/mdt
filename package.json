@@ -6,7 +6,7 @@
   "scripts": {
     "start": "webpack-dev-server",
     "dev": "webpack-dev-server",
-    "build": "rm -rf build && webpack --env.prod && cp public/* build/ && cp public/index.html build/404.html",
+    "build": "rm -rf build && webpack-cli --env.prod && cp public/* build/ && cp public/index.html build/404.html",
     "deploy": "gh-pages --dist build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "precommit": "lint-staged"
@@ -35,7 +35,8 @@
     "url": "https://github.com/liamcmitchell/mdt/issues"
   },
   "homepage": "https://github.com/liamcmitchell/mdt#readme",
-  "dependencies": {
+  "dependencies": {},
+  "devDependencies": {
     "babel-core": "^6.24.1",
     "babel-eslint": "^8.2.2",
     "babel-loader": "^7.1.4",
@@ -46,13 +47,17 @@
     "babel-preset-stage-0": "^6.24.1",
     "body-parser": "^1.14.2",
     "eslint": "^4.19.0",
+    "eslint-config-prettier": "^2.9.0",
     "eslint-plugin-react": "^7.7.0",
     "gh-pages": "^1.1.0",
     "history": "^4.6.1",
+    "husky": "^0.14.3",
     "json-loader": "^0.5.4",
     "jsonschema": "^1.2.2",
     "keycode": "^2.1.0",
+    "lint-staged": "^7.0.0",
     "lodash": "^4.17.5",
+    "prettier": "1.11.1",
     "prop-types": "^15.6.1",
     "qs": "^6.4.0",
     "react": "^16.2.0",
@@ -62,13 +67,8 @@
     "rxjs": "^5.5.7",
     "uglifyjs-webpack-plugin": "^1.2.4",
     "url-io": "^4.2.0",
-    "webpack": "^3.8.1",
-    "webpack-dev-server": "^2.4.2"
-  },
-  "devDependencies": {
-    "eslint-config-prettier": "^2.9.0",
-    "husky": "^0.14.3",
-    "lint-staged": "^7.0.0",
-    "prettier": "1.11.1"
+    "webpack": "^4.1.1",
+    "webpack-cli": "^2.0.12",
+    "webpack-dev-server": "^3.1.1"
   }
 }
