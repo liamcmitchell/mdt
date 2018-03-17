@@ -21,7 +21,7 @@ export default compose(
   }),
   withProps(({location: {pathname}}) => ({
     path: pathname.slice(1),
-    pathPieces: pathname.slice(1).split('/'),
+    pathPieces: pathname.slice(1).split('/').filter(Boolean),
   })),
   withIO(({io, path, pathPieces, location: {search}}) => {
     return {
