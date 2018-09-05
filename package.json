@@ -62,11 +62,11 @@
     "qs": "^6.4.0",
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
-    "react-io": "^4.4.8",
+    "react-io": "^4.5.0",
     "recompose": "^0.26.0",
     "rxjs": "^5.5.7",
     "uglifyjs-webpack-plugin": "^1.2.4",
-    "url-io": "^4.2.0",
+    "url-io": "^4.5.0",
     "webpack": "^4.1.1",
     "webpack-cli": "^2.0.12",
     "webpack-dev-server": "^3.1.1"

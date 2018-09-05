@@ -1,3 +1,1 @@
-export default function isObservable(o) {
-  return o && typeof o.subscribe === 'function'
-}
+export default (o) => o && typeof o.subscribe === 'function'

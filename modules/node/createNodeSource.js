@@ -1,9 +1,8 @@
-import {paths, methods} from 'url-io'
+import {routes, pathToArray} from 'url-io'
 import ensureObservable from 'lib/ensureObservable'
 import {of} from 'rxjs/observable/of'
 import {map} from 'rxjs/operators/map'
 import {switchMap} from 'rxjs/operators/switchMap'
-import {pathToArray} from 'url-io'
 
 const hasKey = (key) => (node) => node && node.key === key
 
@@ -25,8 +24,8 @@ All properties except for key can be defined as a funtion which takes a request 
 All properties except for key can return an observable (non-observables are converted).
 */
 export default function createNodeSource(root) {
-  return paths({
-    '/meta': methods({
+  return routes({
+    '/meta': {
       OBSERVE: ({path, io, originalPath}) => {
         const pathArray = pathToArray(path)
 
@@ -57,8 +56,8 @@ export default function createNodeSource(root) {
           )
         )
       },
-    }),
-    '/:property': methods({
+    },
+    '/:property': {
       OBSERVE: (request) => {
         const {path, io, property, originalPath} = request
 
@@ -69,7 +68,6 @@ export default function createNodeSource(root) {
         const rootPath = originalPath.replace(`/${property}/${path}`, '')
 
         return io(`${rootPath}/meta/${path}`).pipe(
-          // Property may resolve to be an observable so we need flatmap.
           switchMap((node) =>
             ensureObservable(
               // Use default if node doesn't have property.
@@ -83,6 +81,6 @@ export default function createNodeSource(root) {
           )
         )
       },
-    }),
+    },
   })
 }
