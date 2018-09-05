@@ -1,5 +1,5 @@
 import nodesFromValue from 'node/nodesFromValue'
-import {map} from 'rxjs/operators/map'
+import {map} from 'rxjs/operators'
 
 const url = '/localStorage/json'
 

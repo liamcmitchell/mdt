@@ -1,4 +1,4 @@
-import {of} from 'rxjs/observable/of'
+import {of} from 'rxjs'
 import colors from 'lib/colors'
 
 export default () =>

@@ -1,8 +1,7 @@
 import {routes, pathToArray} from 'url-io'
 import ensureObservable from 'lib/ensureObservable'
-import {of} from 'rxjs/observable/of'
-import {map} from 'rxjs/operators/map'
-import {switchMap} from 'rxjs/operators/switchMap'
+import {of} from 'rxjs'
+import {map, switchMap} from 'rxjs/operators'
 
 const hasKey = (key) => (node) => node && node.key === key
 

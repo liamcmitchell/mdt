@@ -1,4 +1,4 @@
-import {map} from 'rxjs/operators/map'
+import {map} from 'rxjs/operators'
 import qs from 'qs'
 
 // Parse/stringify query string.

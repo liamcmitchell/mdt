@@ -51,6 +51,8 @@ module.exports = ({prod} = {}) => {
         }),
       ],
     },
-    plugins: [!prod && new webpack.HotModuleReplacementPlugin()],
+    plugins: [!prod && new webpack.HotModuleReplacementPlugin()].filter(
+      Boolean
+    ),
   }
 }
